@@ -1513,7 +1513,7 @@ index 5682938..5292bf7 100644
          /** dsh-pet 的移动距离是「基准宠物宽 462px」下的绝对像素，运行时按 size/462 等比缩放 */
          const val PET_REF_WIDTH = 462.0
 diff --git a/app/src/main/java/com/dshpet/android/PetService.kt b/app/src/main/java/com/dshpet/android/PetService.kt
-index 568f377..8cbffec 100644
+index 568f377..76c8101 100644
 --- a/app/src/main/java/com/dshpet/android/PetService.kt
 +++ b/app/src/main/java/com/dshpet/android/PetService.kt
 @@ -5,14 +5,17 @@ import android.app.NotificationChannel
@@ -1534,7 +1534,19 @@ index 568f377..8cbffec 100644
  import android.os.Build
  import android.os.Handler
  import android.os.IBinder
-@@ -54,6 +57,15 @@ class PetService : Service() {
+@@ -44,6 +47,11 @@ import kotlin.random.Random
+  */
+ class PetService : Service() {
+ 
++    /** v1.9：onDestroy 置位，让 Weather.fetch 回调在销毁后不再碰宠物 */
++    @Volatile
++    private var stopped = false
++
++
+     companion object {
+         private const val TAG = "DshPetSvc"
+         private const val CHANNEL_ID = "dsh_pet_overlay"
+@@ -54,6 +62,15 @@ class PetService : Service() {
          const val ACTION_RELOAD = "com.dshpet.android.action.RELOAD"
          const val ACTION_LINES = "com.dshpet.android.action.LINES"
  
@@ -1550,7 +1562,7 @@ index 568f377..8cbffec 100644
          fun start(ctx: Context) {
              val i = Intent(ctx, PetService::class.java).setAction(ACTION_START)
              ctx.startForegroundService(i)
-@@ -103,6 +115,14 @@ class PetService : Service() {
+@@ -103,6 +120,14 @@ class PetService : Service() {
      private var tapCount = 0
      private var tapWindowMs = 0L
  
@@ -1565,7 +1577,7 @@ index 568f377..8cbffec 100644
      override fun onBind(intent: Intent?): IBinder? = null
  
      override fun onCreate() {
-@@ -288,6 +308,11 @@ class PetService : Service() {
+@@ -288,6 +313,11 @@ class PetService : Service() {
                  pet.onSettled = { onPetSettled(pet) }
                  pet.onHiddenChange = { hidden -> onPetHiddenChange(pet, hidden) }
  
@@ -1577,7 +1589,7 @@ index 568f377..8cbffec 100644
                  val lp = WindowManager.LayoutParams(
                      pet.sizePx,
                      pet.heightPx,
-@@ -325,10 +350,142 @@ class PetService : Service() {
+@@ -325,10 +355,142 @@ class PetService : Service() {
          }
          Diag.record(this, "spawnAll 完成，成功 ${held.size} 只")
  
@@ -1720,7 +1732,7 @@ index 568f377..8cbffec 100644
      private fun teardown() {
          handler.removeCallbacks(tickRunnable)
          dismissMenu()
-@@ -345,6 +502,20 @@ class PetService : Service() {
+@@ -345,6 +507,20 @@ class PetService : Service() {
              }
          }
          held.clear()
@@ -1741,7 +1753,7 @@ index 568f377..8cbffec 100644
      }
  
      // ------------------------------------------------------------ 台词气泡
-@@ -559,6 +730,43 @@ class PetService : Service() {
+@@ -559,6 +735,43 @@ class PetService : Service() {
              // 一小时以上没人理：换成更小声的「busy」嘟囔
              sayFrom(if (idle > 600_000L) "busy" else "idle")
          }
@@ -1768,7 +1780,7 @@ index 568f377..8cbffec 100644
 +            lastWeatherMs = now
 +            val city = Prefs.weatherCity(this)
 +            Weather.fetch(this, city) { rep ->
-+                if (isFinishing()) return@fetch
++                if (stopped) return@fetch
 +                val r = rep
 +                val p = held.firstOrNull()?.pet ?: return@fetch
 +                if (r != null && Prefs.bubbleOn(this)) {
@@ -1785,7 +1797,7 @@ index 568f377..8cbffec 100644
      }
  
      // ------------------------------------------------------------ 长按动作菜单
-@@ -685,6 +893,24 @@ class PetService : Service() {
+@@ -685,6 +898,24 @@ class PetService : Service() {
                  ?.actions?.randomOrNull()
                  ?.let { slug -> pet.playAction(slug) }
          }
@@ -1810,7 +1822,7 @@ index 568f377..8cbffec 100644
          addRow("↺ 回到初始位置") {
              dismissMenu()
              pet.resetPosition()
-@@ -727,8 +953,14 @@ class PetService : Service() {
+@@ -727,8 +958,14 @@ class PetService : Service() {
      private val tickRunnable = object : Runnable {
          override fun run() {
              var active = false
@@ -1825,6 +1837,14 @@ index 568f377..8cbffec 100644
                      if (h.pet.tick()) active = true
                  } catch (t: Throwable) {
                      Diag.record(this@PetService, "tick 异常", t)
+@@ -758,6 +995,7 @@ class PetService : Service() {
+     }
+ 
+     override fun onDestroy() {
++        stopped = true
+         try {
+             teardown()
+         } catch (t: Throwable) {
 diff --git a/app/src/main/java/com/dshpet/android/Physics.kt b/app/src/main/java/com/dshpet/android/Physics.kt
 index 98c7709..0a012fa 100644
 --- a/app/src/main/java/com/dshpet/android/Physics.kt
@@ -2130,10 +2150,10 @@ index aa2ab63..b0fda23 100644
  
 diff --git a/app/src/main/java/com/dshpet/android/Weather.kt b/app/src/main/java/com/dshpet/android/Weather.kt
 new file mode 100644
-index 0000000..301ec19
+index 0000000..4fee408
 --- /dev/null
 +++ b/app/src/main/java/com/dshpet/android/Weather.kt
-@@ -0,0 +1,191 @@
+@@ -0,0 +1,189 @@
 +package com.dshpet.android
 +
 +import android.content.Context
@@ -2149,14 +2169,11 @@ index 0000000..301ec19
 +
 +/**
 + * 天气（v1.9，opt-in 联网）：用 Open-Meteo（**免 API key**）取用户指定城市的当前天气。
-+ *
-+ * 设计原则：设置页关着（默认）就**完全不调用**本类，App 保持「默认零网络」的既有设计；
-+ * 只有用户主动打开「天气」并填了城市名，才走这里的两段请求：
++ * 设计原则：设置页关着（默认）就完全不调用本类，App 保持「默认零网络」；
++ * 只有用户主动打开「天气」并填了城市名，才走两段请求：
 + *   1) 地理编码：城市名 → 经纬度（geocoding-api.open-meteo.com）
 + *   2) 当前天气：经纬度 → 温度 + 天气码（api.open-meteo.com/v1/forecast?current=...）
-+ *
-+ * 结果写 `files/weather.json`（带时间戳）做 30 分钟缓存，重启 / 重新触发直接读缓存不联网。
-+ * 任何一步失败都静默降级（Diag 记一笔，返回 null），绝不影响桌宠其它功能。
++ * 结果写 files/weather.json（带时间戳）做 30 分钟缓存；失败静默降级（Diag 记一笔），不影响桌宠。
 + */
 +object Weather {
 +
@@ -2166,11 +2183,9 @@ index 0000000..301ec19
 +    private const val CONNECT_TIMEOUT_MS = 6000
 +    private const val READ_TIMEOUT_MS = 10000
 +
-+    /** 单线程执行器：后台发请求，不占主线程 */
 +    private val io = Executors.newSingleThreadExecutor()
 +    private val main = Handler(Looper.getMainLooper())
 +
-+    /** 防止同一时刻重复请求（点得很快时） */
 +    @Volatile
 +    private var inFlight = false
 +
@@ -2178,9 +2193,8 @@ index 0000000..301ec19
 +        File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, "weather.json")
 +
 +    /**
-+     * 取城市当前天气。`onResult` 一定在主线程回调：
-+     *  - 成功 → [Report]（可能是缓存）
-+     *  - 失败 / 没填城市 / 网络不可用 → null
++     * 取城市当前天气。onResult 一定在主线程回调：成功 → Report（可能缓存）；
++     * 失败 / 没填城市 / 无网络 → null。
 +     */
 +    fun fetch(ctx: Context, city: String, onResult: (Report?) -> Unit) {
 +        val trimmed = city.trim()
@@ -2188,7 +2202,7 @@ index 0000000..301ec19
 +            onResult(null)
 +            return
 +        }
-+        // 1) 同城市 + 30 分钟内 → 直接用缓存，不联网
++        // 1) 同城市 + 30 分钟内 → 用缓存不联网
 +        try {
 +            val f = cacheFile(ctx)
 +            if (f.isFile) {
@@ -2202,10 +2216,9 @@ index 0000000..301ec19
 +                }
 +            }
 +        } catch (_: Throwable) {
-+            // 缓存读不了就重取
 +        }
 +
-+        if (inFlight) return  // 上一次还没回来，不叠加
++        if (inFlight) return
 +        if (!hasNetwork(ctx)) {
 +            Diag.record(ctx, "天气：当前无网络，跳过")
 +            onResult(null)
@@ -2227,7 +2240,6 @@ index 0000000..301ec19
 +    }
 +
 +    private fun doFetch(city: String): Report? {
-+        // 1) 地理编码：城市名 → 经纬度（取第一个命中）
 +        val geoUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" +
 +            URLEncoder.encode(city, "UTF-8") + "&count=1&language=zh"
 +        val geo = httpGet(geoUrl) ?: return null
@@ -2239,7 +2251,6 @@ index 0000000..301ec19
 +        val lon = first.optDouble("longitude", Double.NaN)
 +        if (lat.isNaN() || lon.isNaN()) return null
 +
-+        // 2) 当前天气：温度 + 天气码
 +        val fUrl = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
 +            "&current=temperature_2m,weather_code&timezone=auto"
 +        val fobj = JSONObject(httpGet(fUrl) ?: return null)
@@ -2247,8 +2258,12 @@ index 0000000..301ec19
 +        val temp = cur.optInt("temperature_2m", Int.MIN_VALUE)
 +        val code = cur.optInt("weather_code", -1)
 +        if (temp == Int.MIN_VALUE && code < 0) return null
-+        return Report(temp = if (temp == Int.MIN_VALUE) 0 else temp, code = if (code < 0) 3 else code,
-+            desc = codeToDesc(code), fromCache = false)
++        return Report(
++            temp = if (temp == Int.MIN_VALUE) 0 else temp,
++            code = if (code < 0) 3 else code,
++            desc = codeToDesc(code),
++            fromCache = false
++        )
 +    }
 +
 +    private fun save(ctx: Context, city: String, r: Report) {
@@ -2274,17 +2289,19 @@ index 0000000..301ec19
 +            temp = if (temp == Int.MIN_VALUE) 0 else temp,
 +            code = if (code < 0) 3 else code,
 +            desc = codeToDesc(code),
-+            fromCache = fromCache,
++            fromCache = fromCache
 +        )
 +    }
 +
-+    private fun hasNetwork(ctx: Context): Boolean = try {
-+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
-+            ?: return@try false
-+        @Suppress("DEPRECATION")
-+        cm.activeNetworkInfo?.isConnected ?: false
-+    } catch (_: Throwable) {
-+        false
++    private fun hasNetwork(ctx: Context): Boolean {
++        return try {
++            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
++            @Suppress("DEPRECATION")
++            val connected = cm?.activeNetworkInfo?.isConnected ?: false
++            connected
++        } catch (_: Throwable) {
++            false
++        }
 +    }
 +
 +    private fun httpGet(url: String): String? {
@@ -2297,11 +2314,12 @@ index 0000000..301ec19
 +            val code = conn.responseCode
 +            if (code !in 200..299) {
 +                conn.disconnect()
-+                return null
++                null
++            } else {
++                val text = conn.inputStream.bufferedReader().use { it.readText() }
++                conn.disconnect()
++                text
 +            }
-+            val text = conn.inputStream.bufferedReader().use { it.readText() }
-+            conn.disconnect()
-+            text
 +        } catch (_: Throwable) {
 +            null
 +        }

@@ -1,5 +1,7 @@
---- a/README.md	2026-10-22 18:57:56.000000000 +0800
-+++ b/README.md	2026-11-01 15:30:21.738491824 +0800
+diff --git a/README.md b/README.md
+index 30385f2..bc174c8 100644
+--- a/README.md
++++ b/README.md
 @@ -15,7 +15,15 @@
  - ✅ **后台保活**（默认开）：从「最近任务」隐藏，手滑清后台不会划掉，被系统杀掉会自动回来
  - ✅ 大小可调（80–360dp）、开机自启
@@ -17,7 +19,7 @@
  
  ## 下载安装
  
-@@ -141,6 +149,30 @@
+@@ -141,6 +149,30 @@ tools/
  
  ## 更新日志
  
@@ -48,9 +50,11 @@
  ### v1.8.1（2026-10-22）
  
  - **修复「动作名字和动画对不上」**：24fps 重转把素材编号顺序从拼音序换成了编码序，配置却沿用了旧顺序，
---- a/app/build.gradle.kts	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/build.gradle.kts	2026-11-01 14:40:50.206492958 +0800
-@@ -11,8 +11,8 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index d254fad..f727588 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -11,8 +11,8 @@ android {
          applicationId = "com.dshpet.android"
          minSdk = 28
          targetSdk = 34
@@ -61,8 +65,10 @@
      }
  
      buildTypes {
---- a/app/src/main/AndroidManifest.xml	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/AndroidManifest.xml	2026-11-01 14:40:45.066492960 +0800
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index a667b49..ea1c8a2 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
 @@ -13,6 +13,11 @@
      <!-- 不需要网络：本 app 完全离线（无 AI、无余额查询） -->
      <!-- 后台保活：申请「忽略电池优化」，减少省电策略把宠物杀掉 -->
@@ -75,8 +81,10 @@
  
      <application
          android:name=".App"
---- a/app/src/main/assets/lines.json	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/assets/lines.json	2026-11-01 15:26:38.030491909 +0800
+diff --git a/app/src/main/assets/lines.json b/app/src/main/assets/lines.json
+index 41a0494..118079b 100644
+--- a/app/src/main/assets/lines.json
++++ b/app/src/main/assets/lines.json
 @@ -1,347 +1,605 @@
  {
 -  "version": 1,
@@ -1030,9 +1038,11 @@
 +  ]
 + }
 +}
---- a/app/src/main/java/com/dshpet/android/Lines.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/Lines.kt	2026-11-01 15:26:02.166491923 +0800
-@@ -124,6 +124,9 @@
+diff --git a/app/src/main/java/com/dshpet/android/Lines.kt b/app/src/main/java/com/dshpet/android/Lines.kt
+index aabc25a..e4595e6 100644
+--- a/app/src/main/java/com/dshpet/android/Lines.kt
++++ b/app/src/main/java/com/dshpet/android/Lines.kt
+@@ -124,6 +124,9 @@ class Lines private constructor(
          val CATEGORY_ORDER = listOf(
              "greet", "idle", "tapped", "drag", "morning", "noon",
              "night", "late", "edge", "summon", "busy",
@@ -1042,7 +1052,7 @@
          )
  
          private val LABELS = mapOf(
-@@ -131,6 +134,11 @@
+@@ -131,6 +134,11 @@ class Lines private constructor(
              "drag" to "被拖／甩出", "morning" to "早上", "noon" to "中午",
              "night" to "晚上", "late" to "深夜", "edge" to "贴边躲藏",
              "summon" to "让她说句话", "busy" to "久没人理",
@@ -1054,9 +1064,11 @@
          )
  
          fun labelOf(category: String): String = LABELS[category] ?: category
---- a/app/src/main/java/com/dshpet/android/MainActivity.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/MainActivity.kt	2026-11-01 14:40:25.162492967 +0800
-@@ -12,6 +12,7 @@
+diff --git a/app/src/main/java/com/dshpet/android/MainActivity.kt b/app/src/main/java/com/dshpet/android/MainActivity.kt
+index be84d15..d7c33bd 100644
+--- a/app/src/main/java/com/dshpet/android/MainActivity.kt
++++ b/app/src/main/java/com/dshpet/android/MainActivity.kt
+@@ -12,6 +12,7 @@ import android.os.Bundle
  import android.os.PowerManager
  import android.provider.Settings
  import android.view.View
@@ -1064,7 +1076,7 @@
  import android.widget.SeekBar
  import android.widget.TextView
  import android.widget.Toast
-@@ -46,6 +47,15 @@
+@@ -46,6 +47,15 @@ class MainActivity : Activity() {
      private lateinit var btnLinesImport: TextView
      private lateinit var btnLinesReload: TextView
  
@@ -1080,7 +1092,7 @@
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
          setContentView(R.layout.activity_main)
-@@ -67,6 +77,13 @@
+@@ -67,6 +77,13 @@ class MainActivity : Activity() {
          btnLinesExport = findViewById(R.id.btnLinesExport)
          btnLinesImport = findViewById(R.id.btnLinesImport)
          btnLinesReload = findViewById(R.id.btnLinesReload)
@@ -1094,7 +1106,7 @@
  
          // 宠物名字来自 pet-config.json（现在是「大肥鱼」）
          try {
-@@ -209,6 +226,56 @@
+@@ -209,6 +226,56 @@ class MainActivity : Activity() {
              refreshLines()
          }
  
@@ -1151,7 +1163,7 @@
          findViewById<TextView>(R.id.btnStart).setOnClickListener {
              if (!Settings.canDrawOverlays(this)) {
                  showHint(getString(R.string.need_overlay))
-@@ -386,6 +453,17 @@
+@@ -386,6 +453,17 @@ class MainActivity : Activity() {
          chipToggle(btnEdge, Prefs.edgeHideOn(this))
          chipPets(Prefs.petCount(this))
          chipToggle(btnKeepAlive, Prefs.keepAlive(this))
@@ -1169,9 +1181,11 @@
      }
  
      /**
---- a/app/src/main/java/com/dshpet/android/Pet.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/Pet.kt	2026-11-01 14:45:13.990492857 +0800
-@@ -5,7 +5,11 @@
+diff --git a/app/src/main/java/com/dshpet/android/Pet.kt b/app/src/main/java/com/dshpet/android/Pet.kt
+index bc2be50..cf3411c 100644
+--- a/app/src/main/java/com/dshpet/android/Pet.kt
++++ b/app/src/main/java/com/dshpet/android/Pet.kt
+@@ -5,7 +5,11 @@ import android.graphics.Canvas
  import android.graphics.drawable.AnimatedImageDrawable
  import android.graphics.drawable.Drawable
  import android.graphics.ImageDecoder
@@ -1183,7 +1197,7 @@
  import android.util.Log
  import android.view.MotionEvent
  import android.view.View
-@@ -48,6 +52,24 @@
+@@ -48,6 +52,24 @@ class Pet(
          private const val HIDE_LERP = 0.18
          /** 载入解压/解码动画用的后台线程 */
          private val io = Executors.newSingleThreadExecutor()
@@ -1208,7 +1222,7 @@
      }
  
      private val density = context.resources.displayMetrics.density
-@@ -126,6 +148,24 @@
+@@ -126,6 +148,24 @@ class Pet(
      /** 缩进去躲起来 / 探出来 */
      var onHiddenChange: ((Boolean) -> Unit)? = null
  
@@ -1233,7 +1247,7 @@
      private var pressed = false
      private var longPressFired = false
      private val longPressRunnable = object : Runnable {
-@@ -366,6 +406,7 @@
+@@ -366,6 +406,7 @@ class Pet(
       */
      private fun scheduleNext() {
          Log.i(TAG, "-> scheduleNext")
@@ -1241,7 +1255,7 @@
          val wIdle = max(cfg.weightIdle, 0)
          val wTurn = max(cfg.weightTurn, 0)
          val wMove = max(cfg.weightMove, 0)
-@@ -382,12 +423,14 @@
+@@ -382,12 +423,14 @@ class Pet(
  
      private fun playIdle() {
          Log.i(TAG, "-> playIdle")
@@ -1256,7 +1270,7 @@
          if (cfg.turn.isEmpty()) { playIdle(); return }
          facing = if (facing == 1) -1 else 1
          forcedNoMirror = false
-@@ -398,6 +441,7 @@
+@@ -398,6 +441,7 @@ class Pet(
  
      private fun playRandomAction() {
          Log.i(TAG, "-> playRandomAction")
@@ -1264,7 +1278,7 @@
          val cat = pickByWeight(cfg.categories)
          if (cat == null || cat.actions.isEmpty()) { playIdle(); return }
          forcedNoMirror = cat.noMirror
-@@ -456,6 +500,103 @@
+@@ -456,6 +500,103 @@ class Pet(
          }
      }
  
@@ -1368,7 +1382,7 @@
      // ---------------------------------------------------------------- 触摸
  
      private fun nowMs(): Double = SystemClock.uptimeMillis().toDouble()
-@@ -481,6 +622,13 @@
+@@ -481,6 +622,13 @@ class Pet(
      private fun onTap() {
          Log.i(TAG, "-> onTap")
          wake()
@@ -1382,7 +1396,7 @@
          squash(Physics.SQ_SQUASH)
          onTap?.invoke()
          if (cfg.clicks.isEmpty()) { playIdle(); return }
-@@ -509,12 +657,21 @@
+@@ -509,12 +657,21 @@ class Pet(
              Mode.THROW -> {
                  val b = bounds()
                  val vyBefore = body.vy
@@ -1406,7 +1420,7 @@
                  }
                  push()
                  if (r.atRest) {
-@@ -537,7 +694,24 @@
+@@ -537,7 +694,24 @@ class Pet(
                  push()
                  active = p < 1.0
              }
@@ -1432,7 +1446,7 @@
          }
  
          // 贴边躲藏：先按当前位置重新判定贴边状态。
-@@ -597,9 +771,13 @@
+@@ -597,9 +771,13 @@ class Pet(
          current = null
      }
  
@@ -1447,7 +1461,7 @@
          mode = Mode.IDLE
          dragging = false
          pressed = false
-@@ -607,6 +785,17 @@
+@@ -607,6 +785,17 @@ class Pet(
          play(slug) { scheduleNext() }
      }
  
@@ -1465,9 +1479,11 @@
      /** 左右翻转朝向 */
      fun flip() {
          facing = if (facing == 1) -1 else 1
---- a/app/src/main/java/com/dshpet/android/PetConfig.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/PetConfig.kt	2026-11-01 14:16:24.034493517 +0800
-@@ -55,6 +55,28 @@
+diff --git a/app/src/main/java/com/dshpet/android/PetConfig.kt b/app/src/main/java/com/dshpet/android/PetConfig.kt
+index 5682938..5292bf7 100644
+--- a/app/src/main/java/com/dshpet/android/PetConfig.kt
++++ b/app/src/main/java/com/dshpet/android/PetConfig.kt
+@@ -55,6 +55,28 @@ class PetConfig(
      /** slug → 该段动画播一遍的毫秒数（配置缺失时给个保守默认） */
      fun durationOf(slug: String): Int = durations[slug] ?: 9000
  
@@ -1496,9 +1512,11 @@
      companion object {
          /** dsh-pet 的移动距离是「基准宠物宽 462px」下的绝对像素，运行时按 size/462 等比缩放 */
          const val PET_REF_WIDTH = 462.0
---- a/app/src/main/java/com/dshpet/android/PetService.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/PetService.kt	2026-11-01 15:26:23.266491915 +0800
-@@ -5,14 +5,17 @@
+diff --git a/app/src/main/java/com/dshpet/android/PetService.kt b/app/src/main/java/com/dshpet/android/PetService.kt
+index 568f377..d8cd5c3 100644
+--- a/app/src/main/java/com/dshpet/android/PetService.kt
++++ b/app/src/main/java/com/dshpet/android/PetService.kt
+@@ -5,14 +5,17 @@ import android.app.NotificationChannel
  import android.app.NotificationManager
  import android.app.PendingIntent
  import android.app.Service
@@ -1516,7 +1534,7 @@
  import android.os.Build
  import android.os.Handler
  import android.os.IBinder
-@@ -54,6 +57,15 @@
+@@ -54,6 +57,15 @@ class PetService : Service() {
          const val ACTION_RELOAD = "com.dshpet.android.action.RELOAD"
          const val ACTION_LINES = "com.dshpet.android.action.LINES"
  
@@ -1532,7 +1550,7 @@
          fun start(ctx: Context) {
              val i = Intent(ctx, PetService::class.java).setAction(ACTION_START)
              ctx.startForegroundService(i)
-@@ -103,6 +115,14 @@
+@@ -103,6 +115,14 @@ class PetService : Service() {
      private var tapCount = 0
      private var tapWindowMs = 0L
  
@@ -1547,7 +1565,7 @@
      override fun onBind(intent: Intent?): IBinder? = null
  
      override fun onCreate() {
-@@ -288,6 +308,11 @@
+@@ -288,6 +308,11 @@ class PetService : Service() {
                  pet.onSettled = { onPetSettled(pet) }
                  pet.onHiddenChange = { hidden -> onPetHiddenChange(pet, hidden) }
  
@@ -1559,7 +1577,7 @@
                  val lp = WindowManager.LayoutParams(
                      pet.sizePx,
                      pet.heightPx,
-@@ -325,10 +350,142 @@
+@@ -325,10 +350,142 @@ class PetService : Service() {
          }
          Diag.record(this, "spawnAll 完成，成功 ${held.size} 只")
  
@@ -1702,7 +1720,7 @@
      private fun teardown() {
          handler.removeCallbacks(tickRunnable)
          dismissMenu()
-@@ -345,6 +502,20 @@
+@@ -345,6 +502,20 @@ class PetService : Service() {
              }
          }
          held.clear()
@@ -1723,7 +1741,7 @@
      }
  
      // ------------------------------------------------------------ 台词气泡
-@@ -559,6 +730,43 @@
+@@ -559,6 +730,43 @@ class PetService : Service() {
              // 一小时以上没人理：换成更小声的「busy」嘟囔
              sayFrom(if (idle > 600_000L) "busy" else "idle")
          }
@@ -1767,7 +1785,7 @@
      }
  
      // ------------------------------------------------------------ 长按动作菜单
-@@ -685,6 +893,24 @@
+@@ -685,6 +893,24 @@ class PetService : Service() {
                  ?.actions?.randomOrNull()
                  ?.let { slug -> pet.playAction(slug) }
          }
@@ -1792,7 +1810,7 @@
          addRow("↺ 回到初始位置") {
              dismissMenu()
              pet.resetPosition()
-@@ -727,8 +953,14 @@
+@@ -727,8 +953,14 @@ class PetService : Service() {
      private val tickRunnable = object : Runnable {
          override fun run() {
              var active = false
@@ -1807,9 +1825,11 @@
                      if (h.pet.tick()) active = true
                  } catch (t: Throwable) {
                      Diag.record(this@PetService, "tick 异常", t)
---- a/app/src/main/java/com/dshpet/android/Physics.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/Physics.kt	2026-11-01 14:10:06.786493661 +0800
-@@ -148,14 +148,28 @@
+diff --git a/app/src/main/java/com/dshpet/android/Physics.kt b/app/src/main/java/com/dshpet/android/Physics.kt
+index 98c7709..0a012fa 100644
+--- a/app/src/main/java/com/dshpet/android/Physics.kt
++++ b/app/src/main/java/com/dshpet/android/Physics.kt
+@@ -148,14 +148,28 @@ object Physics {
          return Pair(baseVx / baseSpeed * speed, baseVy / baseSpeed * speed)
      }
  
@@ -1841,9 +1861,11 @@
          x += vx * dt
          y += vy * dt
          var bounced = false
---- a/app/src/main/java/com/dshpet/android/Prefs.kt	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/Prefs.kt	2026-11-01 14:06:46.398493737 +0800
-@@ -14,6 +14,22 @@
+diff --git a/app/src/main/java/com/dshpet/android/Prefs.kt b/app/src/main/java/com/dshpet/android/Prefs.kt
+index 829b902..e544884 100644
+--- a/app/src/main/java/com/dshpet/android/Prefs.kt
++++ b/app/src/main/java/com/dshpet/android/Prefs.kt
+@@ -14,6 +14,22 @@ object Prefs {
      private const val KEY_BUBBLE = "bubble_on"
      private const val KEY_EDGE_HIDE = "edge_hide"
  
@@ -1866,7 +1888,7 @@
      const val DEFAULT_SIZE_DP = 150
      const val MIN_SIZE_DP = 80
      const val MAX_SIZE_DP = 360
-@@ -75,4 +91,60 @@
+@@ -75,4 +91,60 @@ object Prefs {
      fun setKeepAliveAsked(ctx: Context, v: Boolean) {
          sp(ctx).edit().putBoolean(KEY_KEEP_ALIVE_ASKED, v).apply()
      }
@@ -1927,8 +1949,11 @@
 +        sp(ctx).edit().putLong(KEY_LAST_FEED_MS, v).apply()
 +    }
  }
---- a/app/src/main/java/com/dshpet/android/Sensors.kt	1970-01-01 08:00:00.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/Sensors.kt	1970-01-01 08:00:00.000000000 +0800
+diff --git a/app/src/main/java/com/dshpet/android/Sensors.kt b/app/src/main/java/com/dshpet/android/Sensors.kt
+new file mode 100644
+index 0000000..129d61f
+--- /dev/null
++++ b/app/src/main/java/com/dshpet/android/Sensors.kt
 @@ -0,0 +1,117 @@
 +package com.dshpet.android
 +
@@ -1938,7 +1963,7 @@
 +import android.hardware.SensorEventListener
 +import android.hardware.SensorManager
 +import kotlin.math.abs
-+import kotlin.math.hypot
++import kotlin.math.sqrt
 +
 +/**
 + * 传感器：把手机姿态变成桌宠的两种操控（对应上游 dsh-pet 的两个物理开关）：
@@ -2028,7 +2053,7 @@
 +        val hx = x - lpX
 +        val hy = y - lpY
 +        val hz = z - lpZ
-+        val mag = hypot(hx.toDouble(), hy.toDouble(), hz.toDouble())
++        val mag = sqrt(hx*hx + hy*hy + hz*hz)
 +        if (mag < SHAKE_THRESHOLD) return
 +        val now = System.nanoTime() / 1_000_000
 +        if (now - lastShakeMs < SHAKE_COOLDOWN_MS) return
@@ -2047,9 +2072,68 @@
 +        // 精度变化不影响用法
 +    }
 +}
---- a/app/src/main/java/com/dshpet/android/Weather.kt	1970-01-01 08:00:00.000000000 +0800
-+++ b/app/src/main/java/com/dshpet/android/Weather.kt	1970-01-01 08:00:00.000000000 +0800
-@@ -0,0 +1,187 @@
+diff --git a/app/src/main/java/com/dshpet/android/Sfx.kt b/app/src/main/java/com/dshpet/android/Sfx.kt
+index aa2ab63..b0fda23 100644
+--- a/app/src/main/java/com/dshpet/android/Sfx.kt
++++ b/app/src/main/java/com/dshpet/android/Sfx.kt
+@@ -7,6 +7,10 @@ import android.media.SoundPool
+ /**
+  * 点击音效：参考 dsh-whale-widget 的「拍一下」反馈——按下播 `Ya1`，抬手播 `Ya2`。
+  * 两个片段都是短 mp3（3–6 KB），SoundPool 预载，播放零延迟、不阻塞主线程。
++ *
++ * 注：`R.raw.tap_press` / `R.raw.tap_release` 来自上游 dsh-whale 素材（不随本仓库分发，
++ * 与鲸鱼立绘同理，被 gitignore）。本地带素材构建时存在；CI/裸仓库构建时缺失，
++ * 本类检测不到资源就静默禁用（enabled=false），绝不影响交互与桌宠本体。
+  */
+ object Sfx {
+ 
+@@ -15,12 +19,22 @@ object Sfx {
+     private var releaseId = 0
+     private var ready = false
+ 
+-    /** 总开关：在设置页手动控制，关掉后 press/release 直接静默 */
++    /** 总开关：资源缺失或初始化失败时为 false，press/release 直接静默 */
+     @Volatile
+     var enabled: Boolean = true
+ 
+     fun init(ctx: Context) {
+         if (pool != null) return
++        // 先探测资源是否存在（裸仓库/CI 构建缺失 raw 时不崩）
++        val hasRes = try {
++            ctx.resources.getIdentifier("tap_press", "raw", ctx.packageName) != 0
++        } catch (_: Throwable) {
++            true
++        }
++        if (!hasRes) {
++            enabled = false
++            return
++        }
+         try {
+             val p = SoundPool.Builder()
+                 .setMaxStreams(4)
+@@ -34,11 +48,14 @@ object Sfx {
+             p.setOnLoadCompleteListener { _, _, status ->
+                 if (status == 0) ready = true
+             }
+-            pressId = p.load(ctx, R.raw.tap_press, 1)
+-            releaseId = p.load(ctx, R.raw.tap_release, 1)
++            val pressRes = ctx.resources.getIdentifier("tap_press", "raw", ctx.packageName)
++            val releaseRes = ctx.resources.getIdentifier("tap_release", "raw", ctx.packageName)
++            pressId = p.load(ctx, pressRes, 1)
++            releaseId = p.load(ctx, releaseRes, 1)
+             pool = p
+         } catch (t: Throwable) {
+             Diag.record(ctx, "音效初始化失败: ${t.message}")
++            enabled = false
+         }
+     }
+ 
+diff --git a/app/src/main/java/com/dshpet/android/Weather.kt b/app/src/main/java/com/dshpet/android/Weather.kt
+new file mode 100644
+index 0000000..301ec19
+--- /dev/null
++++ b/app/src/main/java/com/dshpet/android/Weather.kt
+@@ -0,0 +1,191 @@
 +package com.dshpet.android
 +
 +import android.content.Context
@@ -2203,51 +2287,57 @@
 +        false
 +    }
 +
-+    private fun httpGet(url: String): String? = try {
-+        val conn = URL(url).openConnection() as HttpURLConnection
-+        conn.connectTimeout = CONNECT_TIMEOUT_MS
-+        conn.readTimeout = READ_TIMEOUT_MS
-+        conn.requestMethod = "GET"
-+        conn.requestProperties["User-Agent"] = "dsh-pet-android/1.9"
-+        val code = conn.responseCode
-+        if (code !in 200..299) {
++    private fun httpGet(url: String): String? {
++        return try {
++            val conn = URL(url).openConnection() as HttpURLConnection
++            conn.connectTimeout = CONNECT_TIMEOUT_MS
++            conn.readTimeout = READ_TIMEOUT_MS
++            conn.requestMethod = "GET"
++            conn.requestProperties["User-Agent"] = "dsh-pet-android/1.9"
++            val code = conn.responseCode
++            if (code !in 200..299) {
++                conn.disconnect()
++                return null
++            }
++            val text = conn.inputStream.bufferedReader().use { it.readText() }
 +            conn.disconnect()
-+            return null
++            text
++        } catch (_: Throwable) {
++            null
 +        }
-+        val text = conn.inputStream.bufferedReader().use { it.readText() }
-+        conn.disconnect()
-+        text
-+    } catch (_: Throwable) {
-+        null
 +    }
 +
 +    /** WMO weather_code → 一句人话（够冒泡用的精度即可） */
-+    fun codeToDesc(code: Int): String = when (code) {
-+        0 -> "晴朗"
-+        1 -> "大致晴朗"
-+        2 -> "多云"
-+        3 -> "阴天"
-+        45, 48 -> "有雾"
-+        51, 53, 55, 56, 57 -> "毛毛雨"
-+        61, 63, 65, 66, 67 -> "下雨"
-+        71, 73, 75, 77 -> "下雪"
-+        80, 81, 82 -> "有阵雨"
-+        85, 86 -> "阵雪"
-+        95, 96, 99 -> "有雷暴"
-+        else -> "天不错"
++    fun codeToDesc(code: Int): String {
++        return when (code) {
++            0 -> "晴朗"
++            1 -> "大致晴朗"
++            2 -> "多云"
++            3 -> "阴天"
++            45, 48 -> "有雾"
++            51, 53, 55, 56, 57 -> "毛毛雨"
++            61, 63, 65, 66, 67 -> "下雨"
++            71, 73, 75, 77 -> "下雪"
++            80, 81, 82 -> "有阵雨"
++            85, 86 -> "阵雪"
++            95, 96, 99 -> "有雷暴"
++            else -> "天不错"
++        }
 +    }
 +}
---- a/app/src/main/res/layout/activity_main.xml	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/res/layout/activity_main.xml	2026-11-01 14:37:35.382493032 +0800
-@@ -439,10 +439,266 @@
+diff --git a/app/src/main/res/layout/activity_main.xml b/app/src/main/res/layout/activity_main.xml
+index 1880954..6c33534 100644
+--- a/app/src/main/res/layout/activity_main.xml
++++ b/app/src/main/res/layout/activity_main.xml
+@@ -439,8 +439,264 @@
                  </LinearLayout>
              </LinearLayout>
  
 -            <!-- 后台保活：清后台时不容易误杀 -->
 +            <!-- 陀螺仪 / 振动（v1.9） -->
              <LinearLayout
-                 android:layout_width="match_parent"
-                 android:layout_height="wrap_content"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
 +                android:layout_marginTop="14dp"
 +                android:background="@drawable/bg_card"
 +                android:orientation="vertical"
@@ -2502,13 +2592,13 @@
 +            </LinearLayout>
 +
 +            <!-- 后台保活：清后台时不容易误杀 -->            <LinearLayout
-+                android:layout_width="match_parent"
-+                android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:layout_height="wrap_content"
                  android:layout_marginTop="12dp"
-                 android:background="@drawable/bg_card"
-                 android:orientation="vertical"
---- a/app/src/main/res/values/strings.xml	2026-10-22 18:57:56.000000000 +0800
-+++ b/app/src/main/res/values/strings.xml	2026-11-01 14:38:17.162493016 +0800
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index 247fb1d..703dbed 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
 @@ -68,6 +68,24 @@
      <string name="keepalive_title">后台保活</string>
      <string name="keepalive_hint">开启后：从「最近任务」里隐藏（清后台时不容易被误删），被系统回收会自动回来，并申请「忽略电池优化」。部分机型还要在系统设置里允许自启动。</string>

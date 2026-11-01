@@ -1513,7 +1513,7 @@ index 5682938..5292bf7 100644
          /** dsh-pet 的移动距离是「基准宠物宽 462px」下的绝对像素，运行时按 size/462 等比缩放 */
          const val PET_REF_WIDTH = 462.0
 diff --git a/app/src/main/java/com/dshpet/android/PetService.kt b/app/src/main/java/com/dshpet/android/PetService.kt
-index 568f377..d8cd5c3 100644
+index 568f377..8cbffec 100644
 --- a/app/src/main/java/com/dshpet/android/PetService.kt
 +++ b/app/src/main/java/com/dshpet/android/PetService.kt
 @@ -5,14 +5,17 @@ import android.app.NotificationChannel
@@ -1768,7 +1768,7 @@ index 568f377..d8cd5c3 100644
 +            lastWeatherMs = now
 +            val city = Prefs.weatherCity(this)
 +            Weather.fetch(this, city) { rep ->
-+                if (isDestroyed()) return@fetch
++                if (isFinishing()) return@fetch
 +                val r = rep
 +                val p = held.firstOrNull()?.pet ?: return@fetch
 +                if (r != null && Prefs.bubbleOn(this)) {

@@ -53,7 +53,7 @@ jobs:
         run: |
           set -e
           echo "sdk.dir=$HOME/android-sdk" > local.properties
-          ANDROID_HOME=$HOME/android-sdk ./gradlew :app:assembleDebug --no-daemon
+          ANDROID_HOME=$HOME/android-sdk sh gradlew :app:assembleDebug --no-daemon
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4

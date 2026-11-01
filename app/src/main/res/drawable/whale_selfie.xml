@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 占位图：鲸鱼娘立绘为第三方素材（不随仓库分发）。CI 构建用透明 shape 顶替，
+     带素材的本地构建会放同名 png 覆盖此文件。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#00000000" />
+</shape>

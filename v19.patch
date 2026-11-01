@@ -2150,10 +2150,10 @@ index aa2ab63..b0fda23 100644
  
 diff --git a/app/src/main/java/com/dshpet/android/Weather.kt b/app/src/main/java/com/dshpet/android/Weather.kt
 new file mode 100644
-index 0000000..4fee408
+index 0000000..553d3e5
 --- /dev/null
 +++ b/app/src/main/java/com/dshpet/android/Weather.kt
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,190 @@
 +package com.dshpet.android
 +
 +import android.content.Context
@@ -2295,10 +2295,11 @@ index 0000000..4fee408
 +
 +    private fun hasNetwork(ctx: Context): Boolean {
 +        return try {
-+            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
++            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
++                ?: return false
 +            @Suppress("DEPRECATION")
-+            val connected = cm?.activeNetworkInfo?.isConnected ?: false
-+            connected
++            val info = cm.activeNetworkInfo ?: return false
++            info.isConnected
 +        } catch (_: Throwable) {
 +            false
 +        }

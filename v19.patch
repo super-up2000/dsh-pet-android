@@ -1,0 +1,2536 @@
+--- a/README.md	2026-10-22 18:57:56.000000000 +0800
++++ b/README.md	2026-11-01 15:30:21.738491824 +0800
+@@ -15,7 +15,15 @@
+ - ✅ **后台保活**（默认开）：从「最近任务」隐藏，手滑清后台不会划掉，被系统杀掉会自动回来
+ - ✅ 大小可调（80–360dp）、开机自启
+ - ❌ 没有 AI 对话 / 余额 / 系统级通知（这些需要 DSH 的模型与账号服务）
+-- ✅ **零网络权限**：没有 AI 就没有联网，不消耗 token
++- ✅ **默认零网络权限**：不开任何开关时不联网、不消耗流量（见下条「天气」）
++- ✅ **v1.9 新玩法**（设置页开关，全部默认关，除振动默认开）：
++  - **陀螺仪倾斜**：转手腕压低一侧，她就往那侧慢慢滑开（「走开」）；甩抛时重力也随倾斜走
++  - **摇一摇甩出**：猛甩手机，她会被甩出去（完整抛体物理 + 撞边反弹 + 落地摩擦）
++  - **睡觉系统 + 梦话**：长按菜单「💤 让她睡觉」→ 沉眠 + 随机打哈欠，每 ~45 秒冒一句梦话；点一下惊醒
++  - **投喂小鱼干 + 好感度**：长按菜单「🐟 投喂」→ 播「吃什么」动画，+5 好感（5 秒冷却），每 100 升一级（Lv.0~9），升级冒泡庆祝
++  - **振动反馈**：落地重震、撞墙轻震（真实马达，可关）
++  - **天气（opt-in 联网）**：开「天气」并填城市后，才用 [Open-Meteo](https://open-meteo.com/)（免 API key、无遥测）30 分钟查一次并冒泡说句天气
++  - **电池感知**：充电 / 满电 / 低电量（≤15%）状态切换时自动冒一句
+ 
+ ## 下载安装
+ 
+@@ -141,6 +149,30 @@
+ 
+ ## 更新日志
+ 
++### v1.9（2026-11-01）
++
++- **陀螺仪倾斜**（设置页默认关）：加速度计采样 → 低通滤波 → 屏幕系重力向量。
++  开着的两种效果：① 闲置时转手腕压低一侧，宠物朝那侧慢慢「走开」（DRIFT_GAIN/DEAD_ZONE 可调）；
++  ② 抛掷飞行中重力不再固定向下，随倾斜走。采样没就绪时自动回落固定重力，不会凭空悬浮
++- **摇一摇甩出**（默认关）：高通滤波检测甩动（≥12 m/s²、700ms 冷却），力度映射到初速
++  （复用 `throwPower` 与 `MAX_THROW_SPEED`），走完整抛体物理（撞边反弹 + 落地摩擦 + Q 弹）
++- **睡觉系统 + 梦话**：长按菜单「💤 让她睡觉」→ 沉眠循环（a018 原地小憩）里随机插
++  打哈欠 / 挠头，每 ~45 秒冒一句梦话；点她一下或「☀️ 叫醒她」播惊醒动画说句醒话。
++  睡觉时其它点播 / 漫游都会先叫醒她
++- **投喂小鱼干 + 好感度**：长按菜单「🐟 投喂」→ 播「吃什么」分类随机一段，+5 好感
++  （本地持久化，5 秒冷却），每 100 升一级（Lv.0~9，上限 9），升级 3 秒后冒一句庆祝；
++  设置页显示当前等级。台词里 `{food}` / `{lv}` 自动替换
++- **振动反馈**（默认开）：落地重震 35ms、撞墙轻震 14ms（真实马达；无马达机型静默忽略）
++- **天气（opt-in 联网）**：设置页开「天气」并填城市后，才用 Open-Meteo（免 key）
++  地理编码 + 当前天气，30 分钟一次并写 `files/weather.json` 缓存；关着时 App 依然零网络。
++  台词里 `{temp}` / `{desc}` 自动替换
++- **电池感知**：监听 `ACTION_BATTERY_CHANGED`，充电 / 满电 / 低电量（≤15%）状态切换时
++  自动冒一句（2 分钟冷却不刷屏）
++- 台词库新增 9 类内置台词：`sleep` / `wake` / `dream` / `feed` / `feed_up` /
++  `battery-charge` / `battery-full` / `battery-low` / `weather`（共 +104 句；battery-* 命名与用户既有
++  `battery-low` / `battery-full` 自定义分类保持一致，充电句为 v1.9 新增）
++- 设置页新增开关：陀螺仪倾斜 / 摇一摇甩出 / 振动反馈 / 天气 + 城市输入
++
+ ### v1.8.1（2026-10-22）
+ 
+ - **修复「动作名字和动画对不上」**：24fps 重转把素材编号顺序从拼音序换成了编码序，配置却沿用了旧顺序，
+--- a/app/build.gradle.kts	2026-10-22 18:57:56.000000000 +0800
++++ b/app/build.gradle.kts	2026-11-01 14:40:50.206492958 +0800
+@@ -11,8 +11,8 @@
+         applicationId = "com.dshpet.android"
+         minSdk = 28
+         targetSdk = 34
+-        versionCode = 12
+-        versionName = "1.8.1"
++        versionCode = 13
++        versionName = "1.9"
+     }
+ 
+     buildTypes {
+--- a/app/src/main/AndroidManifest.xml	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/AndroidManifest.xml	2026-11-01 14:40:45.066492960 +0800
+@@ -13,6 +13,11 @@
+     <!-- 不需要网络：本 app 完全离线（无 AI、无余额查询） -->
+     <!-- 后台保活：申请「忽略电池优化」，减少省电策略把宠物杀掉 -->
+     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
++    <!-- v1.9：仅「天气」开关打开时才会联网（Open-Meteo，免 key）；默认关，默认仍是零网络 -->
++    <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
++    <!-- v1.9：落地/撞墙的振动反馈（普通权限，装好即有，不弹框） -->
++    <uses-permission android:name="android.permission.VIBRATE" />
+ 
+     <application
+         android:name=".App"
+--- a/app/src/main/assets/lines.json	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/assets/lines.json	2026-11-01 15:26:38.030491909 +0800
+@@ -1,347 +1,605 @@
+ {
+-  "version": 1,
+-  "categories": {
+-    "greet": [
+-      "大肥鱼报道啦🐟",
+-      "我来陪你摸鱼了",
+-      "你好呀新桌面",
+-      "鲸鱼娘上线咯🐋",
+-      "今天也请多指教",
+-      "我把家搬来啦",
+-      "桌面好干净呀",
+-      "大肥鱼闪亮登场",
+-      "以后这里归我管",
+-      "见到你真开心",
+-      "我来蹭个位置",
+-      "桌宠已就位啦",
+-      "请多多投喂我",
+-      "我超轻不占地方",
+-      "嗨我是你的鱼",
+-      "从现在起归我陪",
+-      "新桌面新开始",
+-      "尾巴先放这儿了",
+-      "大肥鱼向你问好",
+-      "让我看看新环境"
+-    ],
+-    "idle": [
+-      "你还在吗",
+-      "我有点无聊了",
+-      "太久没理我啦",
+-      "屏幕那头有人吗",
+-      "我数了三百只鱼",
+-      "你是不是忘了我",
+-      "悄悄冒个泡泡",
+-      "我可以自己玩",
+-      "其实有点想你",
+-      "没人理也要可爱",
+-      "我在这里等你哦",
+-      "静得能听见尾巴",
+-      "摸鱼的人去哪了",
+-      "无聊到想数鳞片",
+-      "你就看一眼嘛",
+-      "我把话说小声点",
+-      "大肥鱼在发呆",
+-      "泡泡都吹完了",
+-      "桌面好安静呀",
+-      "我快要睡着了",
+-      "需要人陪的小鱼",
+-      "不打扰但想被看到",
+-      "今天怎么这么静",
+-      "我尾巴都摇累了",
+-      "你在忙什么呀",
+-      "我等得有点久",
+-      "想跟你说句话",
+-      "时间过得好慢",
+-      "我偷偷看着你呢",
+-      "别让我太孤单",
+-      "一个人有点冷清",
+-      "我唱歌给你听",
+-      "好像被冷落了",
+-      "偷偷挪近一点点",
+-      "你会回来对吧",
+-      "我保证不吵你",
+-      "只想要一点点关注",
+-      "发呆也是一种工作",
+-      "我的存在感呢",
+-      "要不要聊聊天",
+-      "鱼也是会寂寞的",
+-      "我不催你我等",
+-      "窗外没什么好看",
+-      "让尾巴打发时间",
+-      "我帮你看着时间",
+-      "冒泡表示还活着💤",
+-      "你回头看我一下",
+-      "我在这儿好久了",
+-      "没人陪就自己转圈",
+-      "安静得像深海",
+-      "我快要长蘑菇了",
+-      "稍微理我一下嘛",
+-      "大肥鱼求关注",
+-      "我只是有点黏人",
+-      "忙完记得看我",
+-      "我把无聊写成歌",
+-      "水里的日子好慢",
+-      "你会不会嫌我烦",
+-      "再等等也没关系",
+-      "我一直在的哦"
+-    ],
+-    "tapped": [
+-      "别戳啦好痒😣",
+-      "再点我要生气了",
+-      "你手怎么这么闲",
+-      "我头都被点晕了",
+-      "停一下好不好",
+-      "戳鱼是不对的",
+-      "我可是会记仇的",
+-      "哎呀别碰那里",
+-      "痒痒痒别点了",
+-      "你戳上瘾了吗",
+-      "我要躲起来了",
+-      "再戳就咬你哦",
+-      "头发都被你弄乱",
+-      "轻一点啦坏人",
+-      "我生气给你看",
+-      "点数太多会变笨",
+-      "别把我当按钮",
+-      "哼哼不理你了",
+-      "手快点拿开",
+-      "我快被你点穿了",
+-      "大肥鱼要发火了",
+-      "再点我就消失",
+-      "你这样很没礼貌",
+-      "我数着呢十七下",
+-      "停手我还爱你",
+-      "别点了我怕痒",
+-      "你是在敲键盘吗",
+-      "我不是解压玩具",
+-      "再戳就哭给你看",
+-      "尾巴都缩起来了",
+-      "忍耐是有限度的",
+-      "我原谅你这一次",
+-      "手指头拿远一点",
+-      "你倒是说句话呀",
+-      "点点点你个头",
+-      "我头上没有按钮",
+-      "别戳了我的鱼鳞",
+-      "再点我就翻脸啦",
+-      "好啦好啦我认输",
+-      "你真的很闲是吧",
+-      "我要报警了哦",
+-      "戳坏了你赔我吗",
+-      "手给我放下",
+-      "我缩成一小团了",
+-      "别闹了我还要脸"
+-    ],
+-    "drag": [
+-      "救命我被拎起来了😱",
+-      "放我下来啦",
+-      "飞起来了呀",
+-      "我恐高的",
+-      "别晃我要吐了",
+-      "轻轻放好不好",
+-      "头发都飞散了",
+-      "我是一只会飞的鱼",
+-      "落地要记得接住",
+-      "别扔我呀",
+-      "晕了晕了慢一点",
+-      "你抓到我尾巴了",
+-      "我飞得好高",
+-      "快接住我快接住",
+-      "这不是蹦极呀",
+-      "我有点怕怕的",
+-      "放回原位好吗",
+-      "我晕机了",
+-      "别把我甩出去",
+-      "风好大呀",
+-      "我落地了哎",
+-      "摔疼了要抱抱",
+-      "你力气好大",
+-      "我像个小风筝",
+-      "慢点我头晕",
+-      "我要回我的角落",
+-      "别拖我尾巴",
+-      "抱稳一点嘛",
+-      "我飘起来了",
+-      "这就是飞行的感觉",
+-      "放我回桌面吧",
+-      "我抓不住你了",
+-      "差点掉下去",
+-      "你手松了我怕",
+-      "稳稳当当放下我"
+-    ],
+-    "morning": [
+-      "早呀今天也要加油☀️",
+-      "天亮了我醒了",
+-      "早上好小主人",
+-      "早餐记得吃哦",
+-      "我陪你开始今天",
+-      "太阳晒到尾巴了",
+-      "早起的人最厉害",
+-      "今天天气不错呀",
+-      "打个哈欠精神点",
+-      "新的一天来啦",
+-      "洗脸了吗就出门",
+-      "别赖床了快起来",
+-      "我比闹钟先醒",
+-      "早上的鱼最精神",
+-      "今天想做什么呢",
+-      "咖啡少喝一点哦",
+-      "给你加个油",
+-      "早晨的第一句问候",
+-      "我伸个懒腰先",
+-      "一天从摸鱼开始"
+-    ],
+-    "noon": [
+-      "中午了该吃饭啦",
+-      "你午饭吃了吗",
+-      "别饿着肚子干活",
+-      "太阳好大我有点晒",
+-      "中午要不要眯一会",
+-      "饭后别马上坐下",
+-      "我闻到饭香了",
+-      "吃饱才有力气摸鱼",
+-      "午休时间到咯",
+-      "今天吃什么呢",
+-      "记得喝水呀",
+-      "中午好呀小主人",
+-      "我也有点饿了",
+-      "下午还长慢慢来",
+-      "眯十分钟也很好"
+-    ],
+-    "night": [
+-      "天黑啦该收工了",
+-      "晚上好呀",
+-      "今天辛苦你了",
+-      "我把灯调暗一点",
+-      "夜空里有星星吗",
+-      "晚饭吃了吗",
+-      "别再看屏幕啦",
+-      "我陪你到睡前",
+-      "今天过得怎么样",
+-      "累了就早点休息",
+-      "夜晚的鱼最温柔",
+-      "我打个盹陪你",
+-      "明天再努力也行",
+-      "要不要聊会天",
+-      "窗外安静下来了",
+-      "我尾巴有点困了",
+-      "忙完记得放松",
+-      "今天也谢谢你",
+-      "夜里风凉盖好被子",
+-      "我在这里守着你",
+-      "别熬夜好不好",
+-      "月亮出来了我看到",
+-      "一天就这样过去了",
+-      "晚安之前再聊一句🌙",
+-      "我悄悄说声辛苦了"
+-    ],
+-    "late": [
+-      "都几点了还不睡😴",
+-      "熬夜会变丑的哦",
+-      "我眼睛都睁不开了",
+-      "快去睡觉啦",
+-      "深夜的鱼要休息",
+-      "再不睡我就生气",
+-      "明天会起不来的",
+-      "你比我还像夜猫子",
+-      "关灯睡觉好不好",
+-      "我陪你但你要睡",
+-      "这个点该做梦了",
+-      "熬夜警告第三次",
+-      "我困得说不出话了",
+-      "手机放下快去睡",
+-      "别熬了心疼你",
+-      "晚安早说早睡觉",
+-      "深夜不许再忙了",
+-      "我打呼噜给你听",
+-      "星星都睡了",
+-      "再不睡我关桌面了"
+-    ],
+-    "edge": [
+-      "我躲到边边啦👀",
+-      "只露半个身子",
+-      "你找不到我了吧",
+-      "这里好有安全感",
+-      "我在角落里冒泡",
+-      "别拉我出来嘛",
+-      "贴着边边最舒服",
+-      "我藏好了哦",
+-      "探头看一眼你在哪",
+-      "我是一条壁虎鱼",
+-      "边边上有点挤",
+-      "偷偷看你一眼",
+-      "我缩在角落里",
+-      "躲猫猫我赢了",
+-      "出来一点点就好",
+-      "这里风小一点",
+-      "我要在这里安家",
+-      "你别把我拽出去",
+-      "半个鱼也算藏好",
+-      "角落是鱼的天堂"
+-    ],
+-    "summon": [
+-      "叫我做什么呀",
+-      "我在听你说呢",
+-      "想说点什么好呢",
+-      "今天也喜欢我吗",
+-      "我唱歌给你听吧🎵",
+-      "摸摸头我会开心的",
+-      "谢谢你愿意点我",
+-      "你最近过得好吗",
+-      "我一直都在哦",
+-      "说个秘密给你听",
+-      "我其实很喜欢你",
+-      "要不要一起摸鱼",
+-      "你今天真好看",
+-      "我准备了好多话",
+-      "你的努力我都看到",
+-      "累了就靠我一下",
+-      "我给你打打气",
+-      "今天也要好好的",
+-      "我有在偷偷关注你",
+-      "想听我讲个笑话吗",
+-      "我讲个冷笑话吧",
+-      "我最近在学游泳",
+-      "你要记得休息哦",
+-      "我把好运分你一半",
+-      "愿你今天顺利",
+-      "需要我的时候喊我",
+-      "我很小但很黏人",
+-      "你笑起来真好看",
+-      "我偷偷存了你的好",
+-      "今天想吃什么",
+-      "我给你放个泡泡",
+-      "别太勉强自己",
+-      "有我在不用怕",
+-      "我是一条懂事的鱼",
+-      "陪我聊两句好吗",
+-      "你值得被好好对待",
+-      "我把烦恼吹成泡泡",
+-      "明天也要见面哦",
+-      "我随时待命哦",
+-      "谢谢你来点我呀"
+-    ],
+-    "busy": [
+-      "你忙你的我不吵🤫",
+-      "我小声嘟囔就好",
+-      "键盘声好响呀",
+-      "我安静待在一旁",
+-      "忙完记得喝水",
+-      "我不打扰你",
+-      "加油我在这儿",
+-      "手指好快呀",
+-      "我悄悄陪着你",
+-      "等你有空再说",
+-      "别太累着自己",
+-      "我闭嘴看着你",
+-      "你眉头皱起来了",
+-      "深呼吸一下再继续",
+-      "我帮你数着时间",
+-      "慢慢来不着急",
+-      "忙起来也要吃饭",
+-      "我缩成一团不碍事",
+-      "你专心我乖",
+-      "记得抬头看看我"
+-    ]
+-  }
+-}
+\ No newline at end of file
++ "version": 1,
++ "categories": {
++  "greet": [
++   "大肥鱼报道啦🐟",
++   "我来陪你摸鱼了",
++   "你好呀新桌面",
++   "鲸鱼娘上线咯🐋",
++   "今天也请多指教",
++   "我把家搬来啦",
++   "桌面好干净呀",
++   "大肥鱼闪亮登场",
++   "以后这里归我管",
++   "见到你真开心",
++   "我来蹭个位置",
++   "桌宠已就位啦",
++   "请多多投喂我",
++   "我超轻不占地方",
++   "嗨我是你的鱼",
++   "从现在起归我陪",
++   "新桌面新开始",
++   "尾巴先放这儿了",
++   "大肥鱼向你问好",
++   "让我看看新环境",
++   "嘿，你的鱼我带来了",
++   "今日份摸鱼鱼已上线",
++   "这条鱼申请驻扎你的桌面",
++   "来陪你了，别假装没看见",
++   "鱼鳍拍一下：我到了",
++   "新的一天，鱼干加一",
++   "我把尾巴翘起来打招呼啦",
++   "报告：鱼已就位",
++   "摸鱼巡逻开始"
++  ],
++  "idle": [
++   "你还在吗",
++   "我有点无聊了",
++   "太久没理我啦",
++   "屏幕那头有人吗",
++   "我数了三百只鱼",
++   "你是不是忘了我",
++   "悄悄冒个泡泡",
++   "我可以自己玩",
++   "其实有点想你",
++   "没人理也要可爱",
++   "我在这里等你哦",
++   "静得能听见尾巴",
++   "摸鱼的人去哪了",
++   "无聊到想数鳞片",
++   "你就看一眼嘛",
++   "我把话说小声点",
++   "大肥鱼在发呆",
++   "泡泡都吹完了",
++   "桌面好安静呀",
++   "我快要睡着了",
++   "需要人陪的小鱼",
++   "不打扰但想被看到",
++   "今天怎么这么静",
++   "我尾巴都摇累了",
++   "你在忙什么呀",
++   "我等得有点久",
++   "想跟你说句话",
++   "时间过得好慢",
++   "我偷偷看着你呢",
++   "别让我太孤单",
++   "一个人有点冷清",
++   "我唱歌给你听",
++   "好像被冷落了",
++   "偷偷挪近一点点",
++   "你会回来对吧",
++   "我保证不吵你",
++   "只想要一点点关注",
++   "发呆也是一种工作",
++   "我的存在感呢",
++   "要不要聊聊天",
++   "鱼也是会寂寞的",
++   "我不催你我等",
++   "窗外没什么好看",
++   "让尾巴打发时间",
++   "我帮你看着时间",
++   "冒泡表示还活着💤",
++   "你回头看我一下",
++   "我在这儿好久了",
++   "没人陪就自己转圈",
++   "安静得像深海",
++   "我快要长蘑菇了",
++   "稍微理我一下嘛",
++   "大肥鱼求关注",
++   "我只是有点黏人",
++   "忙完记得看我",
++   "我把无聊写成歌",
++   "水里的日子好慢",
++   "你会不会嫌我烦",
++   "再等等也没关系",
++   "我一直在的哦",
++   "我缩成一团不碍事",
++   "就看一眼嘛",
++   "等我一会儿就好",
++   "只是有点黏人",
++   "数到一百还没人理",
++   "尾巴摇到累了",
++   "假装在思考人生",
++   "鱼干在梦里发亮",
++   "屏幕那头冷清清"
++  ],
++  "tapped": [
++   "别戳啦好痒😣",
++   "再点我要生气了",
++   "你手怎么这么闲",
++   "我头都被点晕了",
++   "停一下好不好",
++   "戳鱼是不对的",
++   "我可是会记仇的",
++   "哎呀别碰那里",
++   "痒痒痒别点了",
++   "你戳上瘾了吗",
++   "我要躲起来了",
++   "再戳就咬你哦",
++   "头发都被你弄乱",
++   "轻一点啦坏人",
++   "我生气给你看",
++   "点数太多会变笨",
++   "别把我当按钮",
++   "哼哼不理你了",
++   "手快点拿开",
++   "我快被你点穿了",
++   "大肥鱼要发火了",
++   "再点我就消失",
++   "你这样很没礼貌",
++   "我数着呢十七下",
++   "停手我还爱你",
++   "别点了我怕痒",
++   "你是在敲键盘吗",
++   "我不是解压玩具",
++   "再戳就哭给你看",
++   "尾巴都缩起来了",
++   "忍耐是有限度的",
++   "我原谅你这一次",
++   "手指头拿远一点",
++   "你倒是说句话呀",
++   "点点点你个头",
++   "我头上没有按钮",
++   "别戳了我的鱼鳞",
++   "再点我就翻脸啦",
++   "好啦好啦我认输",
++   "你真的很闲是吧",
++   "我要报警了哦",
++   "戳坏了你赔我吗",
++   "手给我放下",
++   "我缩成一小团了",
++   "别闹了我还要脸",
++   "再戳我要炸毛啦",
++   "点我干嘛呀",
++   "鱼鳞都要被戳掉了",
++   "戳够啦，我疼疼",
++   "一下两下三下…停",
++   "手停一下让我喘口气",
++   "痒痒痒别戳了",
++   "你再点我装死给你看",
++   "点鱼是会秃的哦"
++  ],
++  "drag": [
++   "救命我被拎起来了😱",
++   "放我下来啦",
++   "飞起来了呀",
++   "我恐高的",
++   "别晃我要吐了",
++   "轻轻放好不好",
++   "头发都飞散了",
++   "我是一只会飞的鱼",
++   "落地要记得接住",
++   "别扔我呀",
++   "晕了晕了慢一点",
++   "你抓到我尾巴了",
++   "我飞得好高",
++   "快接住我快接住",
++   "这不是蹦极呀",
++   "我有点怕怕的",
++   "放回原位好吗",
++   "我晕机了",
++   "别把我甩出去",
++   "风好大呀",
++   "我落地了哎",
++   "摔疼了要抱抱",
++   "你力气好大",
++   "我像个小风筝",
++   "慢点我头晕",
++   "我要回我的角落",
++   "别拖我尾巴",
++   "抱稳一点嘛",
++   "我飘起来了",
++   "这就是飞行的感觉",
++   "放我回桌面吧",
++   "我抓不住你了",
++   "差点掉下去",
++   "你手松了我怕",
++   "稳稳当当放下我",
++   "我尾巴都摇累了",
++   "鱼晕了鱼晕了",
++   "放我下来放我下来",
++   "我是一只壁虎鱼",
++   "空中飘得好高呀",
++   "抓住我了就别撒手",
++   "鱼鳍打滑了",
++   "这高度我恐高",
++   "落地的时候轻点",
++   "我被拎着飞起来了"
++  ],
++  "morning": [
++   "早呀今天也要加油☀️",
++   "天亮了我醒了",
++   "早上好小主人",
++   "早餐记得吃哦",
++   "我陪你开始今天",
++   "太阳晒到尾巴了",
++   "早起的人最厉害",
++   "今天天气不错呀",
++   "打个哈欠精神点",
++   "新的一天来啦",
++   "洗脸了吗就出门",
++   "别赖床了快起来",
++   "我比闹钟先醒",
++   "早上的鱼最精神",
++   "今天想做什么呢",
++   "咖啡少喝一点哦",
++   "给你加个油",
++   "早晨的第一句问候",
++   "我伸个懒腰先",
++   "一天从摸鱼开始",
++   "六点啦，太阳刚露头",
++   "早安早起的鱼，鱼干管够",
++   "天光正好，适合开工",
++   "小主人早，鱼已就位",
++   "清晨的鱼最灵光",
++   "新的一天，鱼鳍拍拍手",
++   "早餐吃了没？小鱼盯着呢",
++   "六点的桌面还安静",
++   "早起的鱼干比晚起的甜",
++   "我陪你熬过清晨这阵",
++   "早安小太阳",
++   "鱼鳍湿湿的，新的一天",
++   "早起的鱼有虫吃",
++   "今天也一起摸鱼吧",
++   "六点的鱼精神最好",
++   "太阳晒到尾巴了，早安",
++   "醒醒，该开工了",
++   "早餐吃了没，小鱼提醒",
++   "新的一天鱼干满仓",
++   "我陪你熬过清晨"
++  ],
++  "noon": [
++   "中午了该吃饭啦",
++   "你午饭吃了吗",
++   "别饿着肚子干活",
++   "太阳好大我有点晒",
++   "中午要不要眯一会",
++   "饭后别马上坐下",
++   "我闻到饭香了",
++   "吃饱才有力气摸鱼",
++   "午休时间到咯",
++   "今天吃什么呢",
++   "记得喝水呀",
++   "中午好呀小主人",
++   "我也有点饿了",
++   "下午还长慢慢来",
++   "眯十分钟也很好",
++   "十二点了，鱼干时间到",
++   "午饭吃得饱，下午摸鱼好",
++   "正午的太阳晒鱼鳞",
++   "十二点的尾巴甩得正欢",
++   "吃完这顿继续上班班",
++   "午休鱼也眯一会儿",
++   "中午别饿着肚子想心事",
++   "饭后的十分钟最珍贵",
++   "开饭开饭，鱼碗端来了",
++   "十二点，鱼干满仓",
++   "该吃午饭啦，摸鱼暂停",
++   "中午的鱼最饿",
++   "鱼干休息时间到",
++   "吃完继续上班班",
++   "别站着吃饭哦",
++   "午休十分钟，鱼陪你",
++   "饭后百步走，活到九十九",
++   "中午眯一会儿吗",
++   "太阳大，鱼躲进影子里",
++   "开饭啦开饭啦"
++  ],
++  "night": [
++   "天黑啦该收工了",
++   "晚上好呀",
++   "今天辛苦你了",
++   "我把灯调暗一点",
++   "夜空里有星星吗",
++   "晚饭吃了吗",
++   "别再看屏幕啦",
++   "我陪你到睡前",
++   "今天过得怎么样",
++   "累了就早点休息",
++   "夜晚的鱼最温柔",
++   "我打个盹陪你",
++   "明天再努力也行",
++   "要不要聊会天",
++   "窗外安静下来了",
++   "我尾巴有点困了",
++   "忙完记得放松",
++   "今天也谢谢你",
++   "夜里风凉盖好被子",
++   "我在这里守着你",
++   "别熬夜好不好",
++   "月亮出来了我看到",
++   "一天就这样过去了",
++   "晚安之前再聊一句🌙",
++   "我悄悄说声辛苦了",
++   "六点啦，鱼收工了",
++   "晚风凉凉的，该歇歇了",
++   "傍晚的尾巴最放松",
++   "下班啦，鱼陪你逛会儿",
++   "晚饭吃了没，小鱼问一声",
++   "夜幕慢慢垂下来了",
++   "今天辛苦了，鱼给个抱抱",
++   "晚上的摸鱼要悠着点",
++   "我把气泡调暗一点",
++   "傍晚的鱼游得最慢",
++   "下班了，鱼也收工",
++   "晚上好呀小主人",
++   "今天辛苦了",
++   "傍晚的尾巴甩得最欢",
++   "陪你逛会儿街",
++   "夜幕垂下来了",
++   "该歇歇啦",
++   "我调暗一点，不晃你眼",
++   "晚上摸鱼别太久哦"
++  ],
++  "late": [
++   "都几点了还不睡😴",
++   "熬夜会变丑的哦",
++   "我眼睛都睁不开了",
++   "快去睡觉啦",
++   "深夜的鱼要休息",
++   "再不睡我就生气",
++   "明天会起不来的",
++   "你比我还像夜猫子",
++   "关灯睡觉好不好",
++   "我陪你但你要睡",
++   "这个点该做梦了",
++   "熬夜警告第三次",
++   "我困得说不出话了",
++   "手机放下快去睡",
++   "别熬了心疼你",
++   "晚安早说早睡觉",
++   "深夜不许再忙了",
++   "我打呼噜给你听",
++   "星星都睡了",
++   "再不睡我关桌面了",
++   "都这么晚了，鱼困了",
++   "夜深了该关灯啦",
++   "晚睡的鱼变咸鱼",
++   "泡泡吹个晚安灯",
++   "鱼鳍合拢进梦泡",
++   "熬夜伤鱼，快睡吧",
++   "深夜的桌面真安静",
++   "我打哈欠你看得到吗",
++   "明天再摸，现在去睡",
++   "晚安晚安小主人",
++   "夜深了要关灯了",
++   "二十二的鱼该睡了",
++   "再不睡变咸鱼啦",
++   "熬夜伤鱼，快睡",
++   "晚点了还在亮屏？",
++   "我已经困得直点头了",
++   "晚安晚安，小主人"
++  ],
++  "edge": [
++   "我躲到边边啦👀",
++   "只露半个身子",
++   "你找不到我了吧",
++   "这里好有安全感",
++   "我在角落里冒泡",
++   "别拉我出来嘛",
++   "贴着边边最舒服",
++   "我藏好了哦",
++   "探头看一眼你在哪",
++   "我是一条壁虎鱼",
++   "边边上有点挤",
++   "偷偷看你一眼",
++   "我缩在角落里",
++   "躲猫猫我赢了",
++   "出来一点点就好",
++   "这里风小一点",
++   "我要在这里安家",
++   "你别把我拽出去",
++   "半个鱼也算藏好",
++   "角落是鱼的天堂",
++   "贴边了，别拉我",
++   "半张脸露给你看",
++   "这里凉快，我赖着",
++   "角落是我的安全区",
++   "探头探脑不冒犯",
++   "我就躲这儿了",
++   "边上风大，鱼会飘",
++   "收起来一点，不挡你",
++   "贴贴边边最安心",
++   "我缩到只剩一条尾巴"
++  ],
++  "summon": [
++   "叫我做什么呀",
++   "我在听你说呢",
++   "想说点什么好呢",
++   "今天也喜欢我吗",
++   "我唱歌给你听吧🎵",
++   "摸摸头我会开心的",
++   "谢谢你愿意点我",
++   "你最近过得好吗",
++   "我一直都在哦",
++   "说个秘密给你听",
++   "我其实很喜欢你",
++   "要不要一起摸鱼",
++   "你今天真好看",
++   "我准备了好多话",
++   "你的努力我都看到",
++   "累了就靠我一下",
++   "我给你打打气",
++   "今天也要好好的",
++   "我有在偷偷关注你",
++   "想听我讲个笑话吗",
++   "我讲个冷笑话吧",
++   "我最近在学游泳",
++   "你要记得休息哦",
++   "我把好运分你一半",
++   "愿你今天顺利",
++   "需要我的时候喊我",
++   "我很小但很黏人",
++   "你笑起来真好看",
++   "我偷偷存了你的好",
++   "今天想吃什么",
++   "我给你放个泡泡",
++   "别太勉强自己",
++   "有我在不用怕",
++   "我是一条懂事的鱼",
++   "陪我聊两句好吗",
++   "你值得被好好对待",
++   "我把烦恼吹成泡泡",
++   "明天也要见面哦",
++   "我随时待命哦",
++   "谢谢你来点我呀",
++   "主人你在吗，我探头了",
++   "叫我来啦",
++   "小鱼待命中",
++   "你喊我做什么呀",
++   "我竖起耳朵听了",
++   "说吧，鱼在听着",
++   "摸一下鱼尾巴",
++   "给你泡杯茶吧",
++   "有活儿尽管派",
++   "今天也记得夸我一句"
++  ],
++  "busy": [
++   "你忙你的我不吵🤫",
++   "我小声嘟囔就好",
++   "键盘声好响呀",
++   "我安静待在一旁",
++   "忙完记得喝水",
++   "我不打扰你",
++   "加油我在这儿",
++   "手指好快呀",
++   "我悄悄陪着你",
++   "等你有空再说",
++   "别太累着自己",
++   "我闭嘴看着你",
++   "你眉头皱起来了",
++   "深呼吸一下再继续",
++   "我帮你数着时间",
++   "慢慢来不着急",
++   "忙起来也要吃饭",
++   "我缩成一团不碍事",
++   "你专心我乖",
++   "记得抬头看看我",
++   "你忙你的，我安静游着",
++   "键盘声真好听",
++   "我当个背景鱼就好",
++   "不打扰，默默冒泡",
++   "累了就看看我一眼",
++   "鱼替你盯会儿桌",
++   "我在角落里攒鱼干",
++   "别太拼，鱼会心疼",
++   "这一句你忙完再看"
++  ],
++  "sleep": [
++   "我去睡啦替你看桌面💤",
++   "眼睛好困呀",
++   "睡个好觉先",
++   "梦里见🐟",
++   "我把灯关小一点",
++   "嘘……我睡啦",
++   "今天也辛苦啦我眯会儿",
++   "睡着了我就不吵你",
++   "zzz……",
++   "给我盖个小被子嘛"
++  ],
++  "wake": [
++   "呼～刚在梦里有鱼干呢",
++   "啊？几点了",
++   "醒了醒了",
++   "梦里追鱼好累",
++   "刚才那条鱼干是谁的",
++   "睡醒啦神清气爽",
++   "你叫我干嘛呀",
++   "我醒得刚好",
++   "伸个懒腰～",
++   "睡眼朦胧看见你了"
++  ],
++  "dream": [
++   "（梦）鱼……好多鱼……",
++   "（梦）不要上班不要摸鱼……",
++   "（梦）尾巴尾巴",
++   "（梦）我飞起来了",
++   "（梦）吃不完的丸子",
++   "（梦）桌面是海洋哦",
++   "（梦）那个谁给我鱼干",
++   "（梦）zzzzz……",
++   "（梦）泡泡飘呀飘",
++   "（梦）深海的灯亮了"
++  ],
++  "feed": [
++   "嗯嗯～{food}好吃",
++   "谢谢投喂！{food}真香",
++   "{food}！我舔舔尾巴",
++   "啊呜～{food}一口",
++   "鱼干到位了{food}",
++   "你最好啦{food}我先尝尝",
++   "{food}！好感度+1💕",
++   "呜哇{food}我认真吃",
++   "就喜欢{food}",
++   "{food}吃得我尾巴乱摇"
++  ],
++  "feed_up": [
++   "Lv.{lv}！我更喜欢你了～",
++   "升到{lv}级啦谢谢投喂",
++   "Lv.{lv}！你是全世界最好的人",
++   "好感{lv}级，鱼鳞都发光了",
++   "Lv.{lv}！我记住你了",
++   "升级啦{lv}！尾巴摇成螺旋桨",
++   "到{lv}级了！我会更努力陪你",
++   "Lv.{lv}～鱼干不白吃",
++   "我升{lv}级啦摸摸头",
++   "Lv.{lv}！以后更黏你"
++  ],
++  "battery-charge": [
++   "充电中～我回血了",
++   "插上啦满血复活",
++   "正在充电别拔我呀",
++   "电量回来啦我精神了",
++   "充电的灯好暖",
++   "嗷呜充饱了有力气陪你"
++  ],
++  "battery-full": [
++   "满电啦，鱼又能游一天",
++   "电量满格，鱼精神抖抖",
++   "充饱了，鱼鳍都硬了",
++   "满电的鱼最横",
++   "血槽满了，摸鱼大业继续",
++   "充完电，鱼又能摆半天",
++   "满格了满格了，鱼飘了",
++   "电量 100，鱼干自由",
++   "满血复活，鱼又能游了",
++   "电量满格，鱼干自由",
++   "充饱了，尾巴甩得飞快",
++   "满电的鱼最嚣张",
++   "电量 100，鱼飘了",
++   "充好电了，开工吧",
++   "满电状态，鱼鳍发光",
++   "电量顶满，摸鱼到底"
++  ],
++  "battery-low": [
++   "鱼快没电啦，主人充电去",
++   "电量见底，鱼要晕过去了",
++   "低电量警告，鱼在发抖",
++   "没电的鱼游不动了",
++   "插个电吧，鱼等你满血",
++   "电量告急，鱼先眯一会儿",
++   "鱼快没力气冒泡了",
++   "充点电嘛，鱼要趴窝了",
++   "电量在抖，可能是鱼累了",
++   "没电的鱼游得慢",
++   "主人快给鱼充个电",
++   "低电量的鱼只想睡觉",
++   "电量告急，鱼要休眠了",
++   "快插根线，鱼要断气了",
++   "没电的鱼鳍都硬了",
++   "电量红了，鱼不冒泡了"
++  ],
++  "weather": [
++   "现在{temp}°C·{desc}哦",
++   "今天{temp}°C{desc}呢",
++   "外面{temp}°C{desc}呀",
++   "我探探头：{temp}°C·{desc}",
++   "今日播报{temp}°C·{desc}🐋",
++   "鱼鳍气象台：{temp}°C·{desc}",
++   "报告{temp}°C·{desc}适合摸鱼",
++   "今天{temp}°C{desc}出门带伞吗",
++   "{temp}°C{desc}我替你看天了",
++   "天气{desc}{temp}°C刚刚好"
++  ]
++ }
++}
+--- a/app/src/main/java/com/dshpet/android/Lines.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/Lines.kt	2026-11-01 15:26:02.166491923 +0800
+@@ -124,6 +124,9 @@
+         val CATEGORY_ORDER = listOf(
+             "greet", "idle", "tapped", "drag", "morning", "noon",
+             "night", "late", "edge", "summon", "busy",
++            // v1.9（battery-* 沿用用户自定义文件里的既有 kebab 命名）
++            "sleep", "wake", "dream", "feed", "feed_up",
++            "battery-charge", "battery-full", "battery-low", "weather",
+         )
+ 
+         private val LABELS = mapOf(
+@@ -131,6 +134,11 @@
+             "drag" to "被拖／甩出", "morning" to "早上", "noon" to "中午",
+             "night" to "晚上", "late" to "深夜", "edge" to "贴边躲藏",
+             "summon" to "让她说句话", "busy" to "久没人理",
++            // v1.9
++            "sleep" to "入睡", "wake" to "被叫醒", "dream" to "梦话",
++            "feed" to "投喂", "feed_up" to "好感升级",
++            "battery-charge" to "充电中", "battery-full" to "满电", "battery-low" to "低电量",
++            "weather" to "天气",
+         )
+ 
+         fun labelOf(category: String): String = LABELS[category] ?: category
+--- a/app/src/main/java/com/dshpet/android/MainActivity.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/MainActivity.kt	2026-11-01 14:40:25.162492967 +0800
+@@ -12,6 +12,7 @@
+ import android.os.PowerManager
+ import android.provider.Settings
+ import android.view.View
++import android.widget.EditText
+ import android.widget.SeekBar
+ import android.widget.TextView
+ import android.widget.Toast
+@@ -46,6 +47,15 @@
+     private lateinit var btnLinesImport: TextView
+     private lateinit var btnLinesReload: TextView
+ 
++    // v1.9 新增
++    private lateinit var btnTilt: TextView
++    private lateinit var btnShake: TextView
++    private lateinit var btnHaptic: TextView
++    private lateinit var btnWeather: TextView
++    private lateinit var inputWeatherCity: EditText
++    private lateinit var btnWeatherCitySave: TextView
++    private lateinit var tvAffinity: TextView
++
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+         setContentView(R.layout.activity_main)
+@@ -67,6 +77,13 @@
+         btnLinesExport = findViewById(R.id.btnLinesExport)
+         btnLinesImport = findViewById(R.id.btnLinesImport)
+         btnLinesReload = findViewById(R.id.btnLinesReload)
++        btnTilt = findViewById(R.id.btnTilt)
++        btnShake = findViewById(R.id.btnShake)
++        btnHaptic = findViewById(R.id.btnHaptic)
++        btnWeather = findViewById(R.id.btnWeather)
++        inputWeatherCity = findViewById(R.id.inputWeatherCity)
++        btnWeatherCitySave = findViewById(R.id.btnWeatherCitySave)
++        tvAffinity = findViewById(R.id.tvAffinity)
+ 
+         // 宠物名字来自 pet-config.json（现在是「大肥鱼」）
+         try {
+@@ -209,6 +226,56 @@
+             refreshLines()
+         }
+ 
++        // ---- v1.9 陀螺仪倾斜 / 摇一摇 / 振动 ----
++        // 倾斜与振动是 spawn 时读进 Pet 的，改了要重建悬浮窗才生效；
++        // 摇一摇是每次甩动实时查 Prefs，立即生效。
++        btnTilt.setOnClickListener {
++            val on = !Prefs.tiltOn(this)
++            Prefs.setTiltOn(this, on)
++            chipToggle(btnTilt, on)
++            reloadIfRunning()
++        }
++        btnShake.setOnClickListener {
++            val on = !Prefs.shakeOn(this)
++            Prefs.setShakeOn(this, on)
++            chipToggle(btnShake, on)
++        }
++        btnHaptic.setOnClickListener {
++            val on = !Prefs.hapticOn(this)
++            Prefs.setHapticOn(this, on)
++            chipToggle(btnHaptic, on)
++            reloadIfRunning()
++        }
++
++        // ---- v1.9 天气（opt-in 联网）----
++        btnWeather.setOnClickListener {
++            val on = !Prefs.weatherOn(this)
++            Prefs.setWeatherOn(this, on)
++            chipToggle(btnWeather, on)
++        }
++        fun saveWeatherCity() {
++            val city = inputWeatherCity.text?.toString()?.trim().orEmpty()
++            if (city.isEmpty()) {
++                Toast.makeText(this, getString(R.string.weather_city_empty), Toast.LENGTH_SHORT).show()
++                return
++            }
++            Prefs.setWeatherCity(this, city)
++            Toast.makeText(this, getString(R.string.weather_city_saved, city), Toast.LENGTH_SHORT).show()
++        }
++        btnWeatherCitySave.setOnClickListener {
++            saveWeatherCity()
++            Sfx.press()
++        }
++        inputWeatherCity.setOnEditorActionListener { v, actionId, _ ->
++            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
++                saveWeatherCity()
++                v.clearFocus()
++                true
++            } else {
++                false
++            }
++        }
++
+         findViewById<TextView>(R.id.btnStart).setOnClickListener {
+             if (!Settings.canDrawOverlays(this)) {
+                 showHint(getString(R.string.need_overlay))
+@@ -386,6 +453,17 @@
+         chipToggle(btnEdge, Prefs.edgeHideOn(this))
+         chipPets(Prefs.petCount(this))
+         chipToggle(btnKeepAlive, Prefs.keepAlive(this))
++
++        // v1.9 新增开关 + 好感度
++        chipToggle(btnTilt, Prefs.tiltOn(this))
++        chipToggle(btnShake, Prefs.shakeOn(this))
++        chipToggle(btnHaptic, Prefs.hapticOn(this))
++        chipToggle(btnWeather, Prefs.weatherOn(this))
++        val city = Prefs.weatherCity(this)
++        if (inputWeatherCity.text?.toString().orEmpty() != city) {
++            inputWeatherCity.setText(city)
++        }
++        tvAffinity.text = getString(R.string.feed_value, Prefs.affinityLevel(this))
+     }
+ 
+     /**
+--- a/app/src/main/java/com/dshpet/android/Pet.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/Pet.kt	2026-11-01 14:45:13.990492857 +0800
+@@ -5,7 +5,11 @@
+ import android.graphics.drawable.AnimatedImageDrawable
+ import android.graphics.drawable.Drawable
+ import android.graphics.ImageDecoder
++import android.os.Build
+ import android.os.SystemClock
++import android.os.VibrationEffect
++import android.os.Vibrator
++import android.os.VibratorManager
+ import android.util.Log
+ import android.view.MotionEvent
+ import android.view.View
+@@ -48,6 +52,24 @@
+         private const val HIDE_LERP = 0.18
+         /** 载入解压/解码动画用的后台线程 */
+         private val io = Executors.newSingleThreadExecutor()
++
++        // ---- v1.9 睡觉 / 投喂：用到的动画 slug（来自 pet-config.json，缺失时自动降级） ----
++        /** 入睡过渡：哈欠连天（播一遍再进入睡眠循环） */
++        const val SLEEP_YAWN_SLUG = "a046"
++        /** 睡眠循环：原地小憩沉眠（反复播，营造「睡着了」的感觉） */
++        const val SLEEP_LOOP_SLUG = "a018"
++        /** 被惊醒：打瞌睡被惊醒（被点一下 / 摇一摇时醒来） */
++        const val SLEEP_WAKE_SLUG = "a061"
++        /** 投喂：吃白饭（菜单「投喂」点播） */
++        const val FEED_SLUG = "a035"
++
++        // ---- v1.9 倾斜漂移手感（IDLE 时随手机倾斜横向滑动） ----
++        /** 倾斜量(px/s²) → 目标速度(px/s) 的比例（小一点，走起来不慌） */
++        private const val DRIFT_GAIN = 0.6
++        /** 漂移速度上限（px/s）：再用力倾斜也不会飞 */
++        private const val DRIFT_MAX_SPEED = 260.0
++        /** 低于这个速度不动（dp 级死区，避免拿着手机轻微晃就挪窝） */
++        private const val DRIFT_DEAD_ZONE = 12.0
+     }
+ 
+     private val density = context.resources.displayMetrics.density
+@@ -126,6 +148,24 @@
+     /** 缩进去躲起来 / 探出来 */
+     var onHiddenChange: ((Boolean) -> Unit)? = null
+ 
++    // ---- v1.9：陀螺漂移 / 振动 / 睡觉 / 投喂 ----
++    /** 陀螺仪倾斜开关（Service 按 Prefs 设置；开 = IDLE 时随手机倾斜横向漂移 + 抛体重力向量化） */
++    var tiltOn = false
++    /** 当前帧倾斜重力向量（屏幕系 px/s²：sx 向右、sy 向下，Service 每帧从 [Sensors] 写入；0 = 未采样） */
++    @Volatile
++    var tiltX = 0.0
++    @Volatile
++    var tiltY = 0.0
++    /** 振动反馈开关（撞边轻震、落地重震；设置页可关） */
++    var hapticOn = false
++    /** 是否睡着（睡着时：不漫游 / 不随机动作 / 不贴边躲藏，只循环睡姿 + 周期梦话由 Service 驱动） */
++    @Volatile
++    var sleeping = false
++    /** 睡/醒状态变化（Service 用它同步菜单文案） */
++    var onSleepStateChange: ((Boolean) -> Unit)? = null
++    /** 被点一下叫醒（Service 用来冒泡一句「醒来台词」） */
++    var onWoken: (() -> Unit)? = null
++
+     private var pressed = false
+     private var longPressFired = false
+     private val longPressRunnable = object : Runnable {
+@@ -366,6 +406,7 @@
+      */
+     private fun scheduleNext() {
+         Log.i(TAG, "-> scheduleNext")
++        if (sleeping) { startSleepLoop(); return }
+         val wIdle = max(cfg.weightIdle, 0)
+         val wTurn = max(cfg.weightTurn, 0)
+         val wMove = max(cfg.weightMove, 0)
+@@ -382,12 +423,14 @@
+ 
+     private fun playIdle() {
+         Log.i(TAG, "-> playIdle")
++        if (sleeping) { startSleepLoop(); return }
+         if (cfg.idle.isEmpty()) { playRandomAction(); return }
+         mode = Mode.IDLE
+         play(cfg.idle.random()) { scheduleNext() }
+     }
+ 
+     private fun playTurn() {
++        if (sleeping) { startSleepLoop(); return }
+         if (cfg.turn.isEmpty()) { playIdle(); return }
+         facing = if (facing == 1) -1 else 1
+         forcedNoMirror = false
+@@ -398,6 +441,7 @@
+ 
+     private fun playRandomAction() {
+         Log.i(TAG, "-> playRandomAction")
++        if (sleeping) { startSleepLoop(); return }
+         val cat = pickByWeight(cfg.categories)
+         if (cat == null || cat.actions.isEmpty()) { playIdle(); return }
+         forcedNoMirror = cat.noMirror
+@@ -456,6 +500,103 @@
+         }
+     }
+ 
++    /** 可漂移范围（左上角坐标区间，与 playMove 的夹取一致）——v1.9 陀螺漂移用 */
++    private fun roamRange(): Pair<Double, Double> {
++        val dm = context.resources.displayMetrics
++        val margin = cfg.moveMargin * density
++        val minLeft = minOf(margin, (dm.widthPixels - sizePx) / 2.0).coerceAtLeast(0.0)
++        val maxLeft = maxOf(minLeft, dm.widthPixels - sizePx - minLeft)
++        return Pair(minLeft, maxLeft)
++    }
++
++    // ---------------------------------------------------------------- v1.9 睡觉
++
++    /** 让她睡下：先打个哈欠，再循环睡姿。睡着后不漫游、不随机动作、不贴边躲藏 */
++    fun goSleep() {
++        if (sleeping) return
++        sleeping = true
++        lastInteractMs = SystemClock.uptimeMillis()
++        setHidden(false)
++        dragging = false
++        pressed = false
++        mode = Mode.IDLE
++        Log.i(TAG, "-> goSleep")
++        if (cfg.hasSlug(SLEEP_YAWN_SLUG)) {
++            play(SLEEP_YAWN_SLUG) { startSleepLoop() }
++        } else {
++            startSleepLoop()
++        }
++        onSleepStateChange?.invoke(true)
++    }
++
++    /** 睡眠循环：反复播「原地小憩沉眠」；被叫醒（sleeping=false）后自然回到随机链 */
++    private fun startSleepLoop() {
++        if (!sleeping) { scheduleNext(); return }
++        mode = Mode.IDLE
++        forcedNoMirror = false
++        val slug = if (cfg.hasSlug(SLEEP_LOOP_SLUG)) SLEEP_LOOP_SLUG else cfg.idle.randomOrNull()
++        if (slug == null) { scheduleNext(); return }
++        play(slug) {
++            if (sleeping) startSleepLoop() else scheduleNext()
++        }
++    }
++
++    /** 叫醒她：播「打瞌睡被惊醒」一段，随后回正常随机链。重复调用无副作用 */
++    fun wakeUp() {
++        if (!sleeping) return
++        sleeping = false
++        Log.i(TAG, "-> wakeUp")
++        onSleepStateChange?.invoke(false)
++        mode = Mode.IDLE
++        if (cfg.hasSlug(SLEEP_WAKE_SLUG)) {
++            play(SLEEP_WAKE_SLUG) { scheduleNext() }
++        } else {
++            scheduleNext()
++        }
++    }
++
++    // ---------------------------------------------------------------- v1.9 投喂
++
++    /** 投喂小鱼干：点播「吃什么」里随机一段。返回播的动画名（供 Service 报喜），没有可用食物返回 null */
++    fun feed(): String? {
++        val slug = cfg.pickEat() ?: FEED_SLUG
++        if (!cfg.hasSlug(slug)) return null
++        if (sleeping) {
++            // 投喂会叫醒她——边吃边醒，比「拒收」可爱
++            sleeping = false
++            onSleepStateChange?.invoke(false)
++        }
++        lastInteractMs = SystemClock.uptimeMillis()
++        mode = Mode.IDLE
++        forcedNoMirror = false
++        Log.i(TAG, "-> feed $slug")
++        play(slug) { scheduleNext() }
++        return cfg.nameOf(slug)
++    }
++
++    // ---------------------------------------------------------------- v1.9 振动
++
++    private var lastHapticMs = 0L
++
++    /** 震一下（落地重 / 撞边轻）。部分 ROM 限制悬浮窗振动，失败静默 */
++    private fun haptic(durationMs: Long) {
++        if (!hapticOn) return
++        val now = SystemClock.uptimeMillis()
++        if (now - lastHapticMs < 250L) return
++        lastHapticMs = now
++        try {
++            val v = if (Build.VERSION.SDK_INT >= 31) {
++                (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
++            } else {
++                @Suppress("DEPRECATION")
++                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
++            }
++            v?.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
++        } catch (_: Throwable) {
++            // 无振动马达 / 勿扰模式：忽略
++        }
++    }
++
+     // ---------------------------------------------------------------- 触摸
+ 
+     private fun nowMs(): Double = SystemClock.uptimeMillis().toDouble()
+@@ -481,6 +622,13 @@
+     private fun onTap() {
+         Log.i(TAG, "-> onTap")
+         wake()
++        // 点一下睡着的她：直接惊醒（而不是普通点击回应）
++        if (sleeping) {
++            wakeUp()
++            onWoken?.invoke()
++            onTap?.invoke()
++            return
++        }
+         squash(Physics.SQ_SQUASH)
+         onTap?.invoke()
+         if (cfg.clicks.isEmpty()) { playIdle(); return }
+@@ -509,12 +657,21 @@
+             Mode.THROW -> {
+                 val b = bounds()
+                 val vyBefore = body.vy
+-                val r = Physics.throwStep(Body(x, y, body.vx, body.vy), 1.0 / 60.0, b, cfg.physics)
++                // v1.9：开陀螺仪时重力向量随手机倾斜走（「倾斜控制重力」）；
++                // 采样没就绪 / 屏幕平面重力分量太小（手机接近平放）时回落到固定向下，避免宠物凭空悬浮
++                val useTilt = tiltOn && (abs(tiltX) + abs(tiltY)) > 300.0
++                val gx = if (useTilt) tiltX else 0.0
++                val gy = if (useTilt) tiltY else cfg.physics.gravity
++                val r = Physics.throwStep(Body(x, y, body.vx, body.vy), 1.0 / 60.0, b, cfg.physics, gx, gy)
+                 x = r.body.x
+                 y = r.body.y
+                 body = r.body
+-                if (r.bounced && abs(r.body.y - b.maxY) < 1.5 && abs(vyBefore) > Physics.SQ_SOFT_SPEED) {
++                val onGround = abs(r.body.y - b.maxY) < 1.5
++                if (r.bounced && onGround && abs(vyBefore) > Physics.SQ_SOFT_SPEED) {
+                     squash(Physics.landingSquash(vyBefore))
++                    haptic(35L)          // 落地：重震一下（和 Q 弹同一条件，不刷屏）
++                } else if (r.bounced && !onGround && abs(body.vx) + abs(body.vy) > 120.0) {
++                    haptic(14L)          // 撞墙/撞顶：轻震
+                 }
+                 push()
+                 if (r.atRest) {
+@@ -537,7 +694,24 @@
+                 push()
+                 active = p < 1.0
+             }
+-            Mode.IDLE -> {}
++            Mode.IDLE -> {
++                // v1.9 陀螺漂移：转手腕压低一侧，她就往那侧慢慢滑（「走开」），
++                // 手指按着 / 睡着 / 贴边躲藏时都不动
++                if (tiltOn && !sleeping && !hidden && !dragging && !pressed && abs(tiltX) > DRIFT_DEAD_ZONE) {
++                    val speed = (tiltX * DRIFT_GAIN).coerceIn(-DRIFT_MAX_SPEED, DRIFT_MAX_SPEED)
++                    val step = speed / 60.0
++                    val (minL, maxL) = roamRange()
++                    val nx = (x + step).coerceIn(minL, maxL)
++                    if (abs(nx - x) > 0.05) {
++                        x = nx
++                        facing = if (step > 0) 1 else -1
++                        lastInteractMs = now   // 挪过窝就不算「闲置」，避免贴边后立刻缩进去
++                        push()
++                        canvasView.invalidate()
++                        active = true
++                    }
++                }
++            }
+         }
+ 
+         // 贴边躲藏：先按当前位置重新判定贴边状态。
+@@ -597,9 +771,13 @@
+         current = null
+     }
+ 
+-    /** 点播指定动画（长按动作菜单用），播完自动回到随机链 */
++    /** 点播指定动画（长按动作菜单用），播完自动回到随机链。睡着时点播会先叫醒她 */
+     fun playAction(slug: String) {
+         wake()
++        if (sleeping) {
++            sleeping = false
++            onSleepStateChange?.invoke(false)
++        }
+         mode = Mode.IDLE
+         dragging = false
+         pressed = false
+@@ -607,6 +785,17 @@
+         play(slug) { scheduleNext() }
+     }
+ 
++    /** v1.9 摇一摇：Service 收到甩动信号后调这里，给宠物一个初速走抛体物理（撞边/落地全套复用） */
++    fun shakeThrow(vx: Double, vy: Double) {
++        if (sleeping) {
++            sleeping = false
++            onSleepStateChange?.invoke(false)
++        }
++        wake()
++        startThrow(vx, vy)
++        onThrown?.invoke()
++    }
++
+     /** 左右翻转朝向 */
+     fun flip() {
+         facing = if (facing == 1) -1 else 1
+--- a/app/src/main/java/com/dshpet/android/PetConfig.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/PetConfig.kt	2026-11-01 14:16:24.034493517 +0800
+@@ -55,6 +55,28 @@
+     /** slug → 该段动画播一遍的毫秒数（配置缺失时给个保守默认） */
+     fun durationOf(slug: String): Int = durations[slug] ?: 9000
+ 
++    /** 该 slug 是否在任何动画池里（睡觉 / 投喂 / 点播动画用来防「播一段不存在的」） */
++    fun hasSlug(slug: String): Boolean {
++        if (slug.isEmpty()) return false
++        if (slug in idle || slug in turn || slug in drag || slug in clicks) return true
++        for (m in moves) if (m.slug == slug) return true
++        for (c in categories) if (slug in c.actions) return true
++        return false
++    }
++
++    /** 「吃什么」分类里随机挑一段（投喂用）；没有就回 null */
++    fun pickEat(): String? {
++        // 1) 分类 id 里带「吃」（上游就叫「吃什么」）
++        val byId = categories.firstOrNull { it.id.contains("吃") }?.actions
++        if (byId != null && byId.isNotEmpty()) return byId.random()
++        // 2) 兜底：动画名里带「吃」的分类（例如「吃白饭」），按名字找
++        for (c in categories) {
++            val eatActions = c.actions.filter { nameOf(it).contains("吃") }
++            if (eatActions.isNotEmpty()) return eatActions.random()
++        }
++        return null
++    }
++
+     companion object {
+         /** dsh-pet 的移动距离是「基准宠物宽 462px」下的绝对像素，运行时按 size/462 等比缩放 */
+         const val PET_REF_WIDTH = 462.0
+--- a/app/src/main/java/com/dshpet/android/PetService.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/PetService.kt	2026-11-01 15:26:23.266491915 +0800
+@@ -5,14 +5,17 @@
+ import android.app.NotificationManager
+ import android.app.PendingIntent
+ import android.app.Service
++import android.content.BroadcastReceiver
+ import android.content.Context
+ import android.content.Intent
++import android.content.IntentFilter
+ import android.content.pm.ServiceInfo
+ import android.graphics.Canvas
+ import android.graphics.Paint
+ import android.graphics.Path
+ import android.graphics.PixelFormat
+ import android.graphics.drawable.Icon
++import android.os.BatteryManager
+ import android.os.Build
+ import android.os.Handler
+ import android.os.IBinder
+@@ -54,6 +57,15 @@
+         const val ACTION_RELOAD = "com.dshpet.android.action.RELOAD"
+         const val ACTION_LINES = "com.dshpet.android.action.LINES"
+ 
++        /** v1.9 梦话兜底：台词库还没有「dream」分类时用这几句 */
++        private val DREAM_FALLBACK = listOf(
++            "（梦）鱼……好多鱼……",
++            "（梦）泡泡飘呀飘",
++            "（梦）那个谁给我鱼干",
++            "zzz……",
++            "（梦）桌面是海洋哦",
++        )
++
+         fun start(ctx: Context) {
+             val i = Intent(ctx, PetService::class.java).setAction(ACTION_START)
+             ctx.startForegroundService(i)
+@@ -103,6 +115,14 @@
+     private var tapCount = 0
+     private var tapWindowMs = 0L
+ 
++    // ---- v1.9 新增：传感器 / 电池 / 天气 / 梦话 ----
++    private var sensors: Sensors? = null
++    private var batteryReceiver: BroadcastReceiver? = null
++    private var lastBatteryState = -1
++    private var lastBatterySpeechMs = 0L
++    private var lastWeatherMs = 0L
++    private var lastDreamMs = 0L
++
+     override fun onBind(intent: Intent?): IBinder? = null
+ 
+     override fun onCreate() {
+@@ -288,6 +308,11 @@
+                 pet.onSettled = { onPetSettled(pet) }
+                 pet.onHiddenChange = { hidden -> onPetHiddenChange(pet, hidden) }
+ 
++                // ---- v1.9：陀螺漂移 / 振动 / 被点醒 ----
++                pet.tiltOn = Prefs.tiltOn(this)
++                pet.hapticOn = Prefs.hapticOn(this)
++                pet.onWoken = { onPetWoken(pet) }
++
+                 val lp = WindowManager.LayoutParams(
+                     pet.sizePx,
+                     pet.heightPx,
+@@ -325,10 +350,142 @@
+         }
+         Diag.record(this, "spawnAll 完成，成功 ${held.size} 只")
+ 
++        // ---- v1.9：传感器（倾斜漂移 + 摇一摇）、电池感知、天气 ----
++        setupSensors()
++        setupBattery()
++
+         // 打个招呼
+         handler.postDelayed({ sayFrom("greet", force = true) }, 1600L)
+     }
+ 
++    // ---------------------------------------------------------------- v1.9 传感器
++
++    /** 注册/重建加速度计监听。没有该传感器的机型静默降级（倾斜/摇一摇失效，其它功能照旧） */
++    private fun setupSensors() {
++        try {
++            sensors?.stop()
++        } catch (_: Throwable) {
++        }
++        val s = Sensors(this)
++        if (s.start()) {
++            s.onShake = { dx, dy, power -> onShakeThrow(dx, dy, power) }
++            sensors = s
++            Diag.record(this, "加速度计已就绪（倾斜控制=${Prefs.tiltOn(this)} 摇一摇=${Prefs.shakeOn(this)}）")
++        } else {
++            sensors = null
++        }
++    }
++
++    /** 摇一摇：把甩动变成一次抛掷（走现成抛体物理：撞边反弹 + 落地摩擦 + Q 弹 + 振动全套） */
++    private fun onShakeThrow(dx: Double, dy: Double, power: Double) {
++        if (!Prefs.shakeOn(this)) return
++        val pet = held.firstOrNull()?.pet ?: return
++        val len = Math.hypot(dx, dy)
++        val ux = if (len > 1e-3) dx / len else 0.0
++        val uy = if (len > 1e-3) dy / len else 1.0   // 纯前后甩时默认往上抛
++        val base = 900.0 + 900.0 * power
++        val speed = (base * (cfg?.physics?.throwPower ?: 1.0)).coerceAtMost(Physics.MAX_THROW_SPEED)
++        lastInteractMs = SystemClock.uptimeMillis()
++        pet.shakeThrow(ux * speed, uy * speed)
++        if (Random.nextDouble() < 0.5) sayFrom("drag")
++    }
++
++    // ---------------------------------------------------------------- v1.9 电池
++
++    /**
++     * 监听电池状态（ACTION_BATTERY_CHANGED 是系统豁免的粘性广播，API 34 也无需注册标志）：
++     * 充电 / 满电 / 低电量（≤15%）三态，切换时冒泡说一句。每 2 分钟最多说一句，不刷屏。
++     */
++    private fun setupBattery() {
++        if (batteryReceiver != null) return
++        batteryReceiver = object : BroadcastReceiver() {
++            override fun onReceive(context: Context?, intent: Intent?) {
++                handleBattery(intent)
++            }
++        }
++        try {
++            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
++        } catch (t: Throwable) {
++            Diag.record(this, "电池广播注册失败", t)
++            batteryReceiver = null
++        }
++    }
++
++    private fun handleBattery(intent: Intent?) {
++        try {
++            val plugged = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
++            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
++            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
++            val pct = if (level < 0 || scale <= 0) 0 else level * 100 / scale
++            val state = when {
++                plugged != 0 && pct >= 99 -> 2   // 满电
++                plugged != 0 -> 1                // 充电中
++                pct in 1..15 -> 3               // 低电量
++                else -> 0                       // 正常
++            }
++            if (state == lastBatteryState) return
++            lastBatteryState = state
++            if (state == 0) return
++            val now = SystemClock.uptimeMillis()
++            if (!Prefs.bubbleOn(this)) return
++            if (now - lastBatterySpeechMs < 120_000L) return
++            lastBatterySpeechMs = now
++            val category = when (state) {
++                1 -> "battery-charge"
++                2 -> "battery-full"
++                else -> "battery-low"
++            }
++            // 延迟 3.5 秒再开口：spawn 时的 1.6s 打招呼先落地，电池句排在它后面；
++            // 等 3.5 秒内状态又变了就跳过（以最新状态为准）
++            val captured = state
++            handler.postDelayed({
++                if (lastBatteryState == captured) sayFrom(category, force = true)
++            }, 3500L)
++        } catch (t: Throwable) {
++            Diag.record(this, "电池台词失败", t)
++        }
++    }
++
++    // ---------------------------------------------------------------- v1.9 投喂 / 醒来
++
++    /** 被点一下叫醒（Pet.onTap 里先醒来再回调这里） */
++    private fun onPetWoken(pet: Pet) {
++        say(pet, lines?.pick("wake") ?: "呼～刚在梦里有鱼干呢")
++    }
++
++    /** 投喂：播「吃什么」动画 + 加好感度；升级时 3 秒后再冒一句「升级台词」 */
++    private fun feedPet(pet: Pet) {
++        try {
++            val now = SystemClock.uptimeMillis()
++            if (now - Prefs.lastFeedMs(this) < Prefs.FEED_COOLDOWN_MS) {
++                say(pet, "刚吃过还没消化呢🥢")
++                return
++            }
++            Prefs.setLastFeedMs(this, now)
++            val oldLv = Prefs.affinityLevel(this)
++            Prefs.addAffinity(this, 5)
++            val newLv = Prefs.affinityLevel(this)
++            lastInteractMs = now
++            val foodName = pet.feed()
++            val l = lines
++            if (foodName != null) {
++                val base = l?.pick("feed") ?: "嗯嗯～好吃"
++                say(pet, base.replace("{food}", foodName).replace("{lv}", newLv.toString()))
++            } else {
++                say(pet, "鱼干都吃完啦")
++            }
++            if (newLv > oldLv) {
++                handler.postDelayed({
++                    if (held.any { it.pet === pet }) {
++                        say(pet, l?.pick("feed_up") ?: "Lv.${newLv}！我更喜欢你了～")
++                    }
++                }, 3000L)
++            }
++        } catch (t: Throwable) {
++            Diag.record(this, "投喂失败", t)
++        }
++    }
++
+     private fun teardown() {
+         handler.removeCallbacks(tickRunnable)
+         dismissMenu()
+@@ -345,6 +502,20 @@
+             }
+         }
+         held.clear()
++        // v1.9：传感器与电池监听一并拆掉，避免泄漏
++        try {
++            sensors?.stop()
++        } catch (_: Throwable) {
++        }
++        sensors = null
++        batteryReceiver?.let { r ->
++            try {
++                unregisterReceiver(r)
++            } catch (_: Throwable) {
++            }
++        }
++        batteryReceiver = null
++        lastBatteryState = -1
+     }
+ 
+     // ------------------------------------------------------------ 台词气泡
+@@ -559,6 +730,43 @@
+             // 一小时以上没人理：换成更小声的「busy」嘟囔
+             sayFrom(if (idle > 600_000L) "busy" else "idle")
+         }
++
++        // ---- v1.9 梦话：任何一只睡着的宠物，每 45 秒冒一句梦话（只冒泡，不换动画） ----
++        // 台词库没有「dream」分类（旧版 lines.json）时用内置兜底，保证功能不缺席
++        if (Prefs.bubbleOn(this) && now - lastDreamMs > 45_000L) {
++            for (h in held) {
++                val pet = h.pet
++                if (!pet.sleeping) continue
++                val text = lines?.pick("dream") ?: DREAM_FALLBACK.random()
++                lastDreamMs = now
++                say(pet, text)
++                break
++            }
++        }
++
++        // ---- v1.9 天气（opt-in）：开了才请求，30 分钟一次，失败静默 ----
++        if (
++            Prefs.weatherOn(this) &&
++            Prefs.weatherCity(this).isNotBlank() &&
++            now - lastWeatherMs > 1_800_000L
++        ) {
++            lastWeatherMs = now
++            val city = Prefs.weatherCity(this)
++            Weather.fetch(this, city) { rep ->
++                if (isDestroyed()) return@fetch
++                val r = rep
++                val p = held.firstOrNull()?.pet ?: return@fetch
++                if (r != null && Prefs.bubbleOn(this)) {
++                    val base = lines?.pick("weather") ?: ""
++                    val text = if (base.isNotBlank()) {
++                        base.replace("{temp}", r.temp.toString()).replace("{desc}", r.desc)
++                    } else {
++                        "现在${r.temp}°C · ${r.desc}"
++                    }
++                    say(p, text)
++                }
++            }
++        }
+     }
+ 
+     // ------------------------------------------------------------ 长按动作菜单
+@@ -685,6 +893,24 @@
+                 ?.actions?.randomOrNull()
+                 ?.let { slug -> pet.playAction(slug) }
+         }
++
++        // ---- v1.9 睡觉 / 叫醒 / 投喂 ----
++        addRow(if (pet.sleeping) "☀️ 叫醒她" else "💤 让她睡觉") {
++            dismissMenu()
++            if (pet.sleeping) {
++                pet.wakeUp()
++                onPetWoken(pet)
++            } else {
++                pet.goSleep()
++                say(pet, lines?.pick("sleep") ?: "我去睡啦，替你看桌面💤")
++            }
++            lastInteractMs = SystemClock.uptimeMillis()
++        }
++        addRow("🐟 投喂小鱼干 · 好感 Lv.${Prefs.affinityLevel(this)}") {
++            dismissMenu()
++            feedPet(pet)
++        }
++
+         addRow("↺ 回到初始位置") {
+             dismissMenu()
+             pet.resetPosition()
+@@ -727,8 +953,14 @@
+     private val tickRunnable = object : Runnable {
+         override fun run() {
+             var active = false
++            val s = sensors
+             for (h in held) {
+                 try {
++                    // v1.9：把最新倾斜重力向量喂给每只宠物（未开传感器时保持 0，自动回落固定重力）
++                    if (s != null && s.available) {
++                        h.pet.tiltX = s.sx
++                        h.pet.tiltY = s.sy
++                    }
+                     if (h.pet.tick()) active = true
+                 } catch (t: Throwable) {
+                     Diag.record(this@PetService, "tick 异常", t)
+--- a/app/src/main/java/com/dshpet/android/Physics.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/Physics.kt	2026-11-01 14:10:06.786493661 +0800
+@@ -148,14 +148,28 @@
+         return Pair(baseVx / baseSpeed * speed, baseVy / baseSpeed * speed)
+     }
+ 
+-    /** 抛体单步积分 + 边界反弹 */
+-    fun throwStep(s: Body, dtRaw: Double, b: Bounds, p: PhysicsParams): StepResult {
++    /**
++     * 抛体单步积分 + 边界反弹。
++     *
++     * v1.9 起重力可向量化（`gx, gy`，屏幕系 px/s²）：
++     *  - 默认 (0, gravity) 与旧行为完全一致（固定向下）
++     *  - 接上陀螺仪后 (gx, gy) 可随手机倾斜走（「倾斜控制重力」，上游 physics.tiltGravity）
++     */
++    fun throwStep(
++        s: Body,
++        dtRaw: Double,
++        b: Bounds,
++        p: PhysicsParams,
++        gx: Double = 0.0,
++        gy: Double = p.gravity,
++    ): StepResult {
+         val dt = min(max(dtRaw, 0.0), MAX_STEP_DT)
+         var x = s.x
+         var y = s.y
+         var vx = s.vx
+         var vy = s.vy
+-        vy += p.gravity * dt
++        vx += gx * dt
++        vy += gy * dt
+         x += vx * dt
+         y += vy * dt
+         var bounced = false
+--- a/app/src/main/java/com/dshpet/android/Prefs.kt	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/Prefs.kt	2026-11-01 14:06:46.398493737 +0800
+@@ -14,6 +14,22 @@
+     private const val KEY_BUBBLE = "bubble_on"
+     private const val KEY_EDGE_HIDE = "edge_hide"
+ 
++    // ---- v1.9 新增 ----
++    /** 陀螺仪倾斜：转手腕让她横向走开（对应上游 physics.tiltGravity） */
++    private const val KEY_TILT = "tilt_on"
++    /** 摇一摇：猛甩手机把她甩出去（对应上游 physics.shakeThrow） */
++    private const val KEY_SHAKE = "shake_on"
++    /** 振动反馈：撞墙/落地时真震一下（安卓真 haptic） */
++    private const val KEY_HAPTIC = "haptic_on"
++    /** 天气（opt-in 联网：默认关，保持「默认零网络」的设计） */
++    private const val KEY_WEATHER = "weather_on"
++    /** 天气城市名（Open-Meteo 免 key，按名字地理编码） */
++    private const val KEY_WEATHER_CITY = "weather_city"
++    /** 好感度：投喂累计值（Lv = 好感度/100），跨重启保留 */
++    private const val KEY_AFFINITY = "affinity"
++    /** 上次投喂时间戳（冷却用，防连点刷好感） */
++    private const val KEY_LAST_FEED_MS = "last_feed_ms"
++
+     const val DEFAULT_SIZE_DP = 150
+     const val MIN_SIZE_DP = 80
+     const val MAX_SIZE_DP = 360
+@@ -75,4 +91,60 @@
+     fun setKeepAliveAsked(ctx: Context, v: Boolean) {
+         sp(ctx).edit().putBoolean(KEY_KEEP_ALIVE_ASKED, v).apply()
+     }
++
++    // ---- v1.9 新增 ----
++
++    /** 陀螺仪倾斜控制：转手腕让她横向走开。默认关（需要陀螺仪，且是较「侵入」的交互） */
++    fun tiltOn(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_TILT, false)
++
++    fun setTiltOn(ctx: Context, v: Boolean) {
++        sp(ctx).edit().putBoolean(KEY_TILT, v).apply()
++    }
++
++    /** 摇一摇甩出：猛甩手机把她抛出去。默认关 */
++    fun shakeOn(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_SHAKE, false)
++
++    fun setShakeOn(ctx: Context, v: Boolean) {
++        sp(ctx).edit().putBoolean(KEY_SHAKE, v).apply()
++    }
++
++    /** 振动反馈：撞墙/落地真震一下，默认开（跟点击音效一样属于「手感」） */
++    fun hapticOn(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_HAPTIC, true)
++
++    fun setHapticOn(ctx: Context, v: Boolean) {
++        sp(ctx).edit().putBoolean(KEY_HAPTIC, v).apply()
++    }
++
++    /** 天气（opt-in 联网，默认关；关闭时完全零网络） */
++    fun weatherOn(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_WEATHER, false)
++
++    fun setWeatherOn(ctx: Context, v: Boolean) {
++        sp(ctx).edit().putBoolean(KEY_WEATHER, v).apply()
++    }
++
++    /** 天气城市名（可空） */
++    fun weatherCity(ctx: Context): String = sp(ctx).getString(KEY_WEATHER_CITY, "") ?: ""
++
++    fun setWeatherCity(ctx: Context, v: String) {
++        sp(ctx).edit().putString(KEY_WEATHER_CITY, v).apply()
++    }
++
++    /** 好感度原始值（每次投喂 +5），跨重启保留 */
++    fun affinity(ctx: Context): Int = sp(ctx).getInt(KEY_AFFINITY, 0)
++
++    fun addAffinity(ctx: Context, delta: Int) {
++        sp(ctx).edit().putInt(KEY_AFFINITY, (affinity(ctx) + delta).coerceAtLeast(0)).apply()
++    }
++
++    /** 好感等级：0 起步，每 100 好感度一级，封顶 9 级（封顶后投喂不再加数值，只走「满级台词」） */
++    fun affinityLevel(ctx: Context): Int = (affinity(ctx) / 100).coerceIn(0, 9)
++
++    /** 投喂冷却（毫秒）：防止手滑连点把好感度刷满 */
++    const val FEED_COOLDOWN_MS = 5_000L
++
++    fun lastFeedMs(ctx: Context): Long = sp(ctx).getLong(KEY_LAST_FEED_MS, 0L)
++
++    fun setLastFeedMs(ctx: Context, v: Long) {
++        sp(ctx).edit().putLong(KEY_LAST_FEED_MS, v).apply()
++    }
+ }
+--- a/app/src/main/java/com/dshpet/android/Sensors.kt	1970-01-01 08:00:00.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/Sensors.kt	1970-01-01 08:00:00.000000000 +0800
+@@ -0,0 +1,117 @@
++package com.dshpet.android
++
++import android.content.Context
++import android.hardware.Sensor
++import android.hardware.SensorEvent
++import android.hardware.SensorEventListener
++import android.hardware.SensorManager
++import kotlin.math.abs
++import kotlin.math.hypot
++
++/**
++ * 传感器：把手机姿态变成桌宠的两种操控（对应上游 dsh-pet 的两个物理开关）：
++ *
++ *  - 倾斜控制（`physics.tiltGravity`）：把加速度计的「重力分量」换算成屏幕坐标系的重力向量。
++ *    手机竖直拿着时 ≈ (0, 1400px/s²) 固定向下，和默认重力手感一致；
++ *    转手腕把一侧压低 → 重力横向分量出现，宠物就会往那侧滑（「走开」）。
++ *  - 摇一摇（`physics.shakeThrow`）：检测猛甩（高通分量 > 阈值）→ 回调甩动方向与力度，
++ *    由 Service 把初速打给宠物，走现成的抛体物理（撞边反弹 / 落地摩擦全套都在）。
++ *
++ * 传感器事件默认落在主线程，和帧循环同线程，读写字段无需额外同步（@Volatile 兜底）。
++ * 取不到加速度计的机型（个别模拟器 / 平板）自动降级：available=false，功能静默失效。
++ */
++class Sensors(private val ctx: Context) : SensorEventListener {
++
++    companion object {
++        /** m/s² → px/s²：让 9.81m/s² ≈ 1400px/s²（与 Physics.gravity 默认值对齐） */
++        const val GAIN = 143.0
++        /** 低通滤波系数（0..1，越大越平滑、越跟手慢） */
++        private const val LPF = 0.8f
++        /** 高通分量（m/s²）超过此值算一次甩动 ≈ 1.2g */
++        private const val SHAKE_THRESHOLD = 12.0
++        /** 两连甩的最小间隔（毫秒） */
++        private const val SHAKE_COOLDOWN_MS = 700L
++        /** 甩动力度归一化参考（m/s²） */
++        private const val SHAKE_REF = 15.0
++    }
++
++    /** 屏幕坐标系重力向量（px/s²）：sx 向右、sy 向下。默认 (0,0) = 尚未采样 */
++    @Volatile var sx = 0.0
++    @Volatile var sy = 0.0
++    @Volatile var available = false
++
++    /** 摇一摇回调：方向（已归一化，屏幕系：右/下为正）+ 力度 0..1 */
++    var onShake: ((dirX: Double, dirY: Double, power: Double) -> Unit)? = null
++
++    private val sm: SensorManager? =
++        ctx.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
++    private val sensor: Sensor? = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
++
++    private var lpX = 0f
++    private var lpY = 0f
++    private var lpZ = 0f
++    private var lastShakeMs = 0L
++
++    /** 注册监听；没有加速度计返回 false（调用方静默降级即可） */
++    fun start(): Boolean {
++        val s = sensor
++        if (sm == null || s == null) {
++            available = false
++            return false
++        }
++        return try {
++            sm.registerListener(this, s, SensorManager.SENSOR_DELAY_GAME)
++            available = true
++        } catch (t: Throwable) {
++            Diag.record(ctx, "注册加速度计失败", t)
++            available = false
++            false
++        }
++    }
++
++    fun stop() {
++        try {
++            sm?.unregisterListener(this)
++        } catch (_: Throwable) {
++        }
++        available = false
++    }
++
++    override fun onSensorChanged(event: SensorEvent) {
++        if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
++        val x = event.values[0]
++        val y = event.values[1]
++        val z = event.values[2]
++        // 低通拿重力分量
++        lpX = LPF * lpX + (1 - LPF) * x
++        lpY = LPF * lpY + (1 - LPF) * y
++        lpZ = LPF * lpZ + (1 - LPF) * z
++        // 屏幕系重力：手机竖直 → (0, +9.81*GAIN) 向下；右侧压低 → sx 增大（往右滑）。
++        // 推导：静止时加速度计读 f=-g，即 g_device = -f；屏幕系 = (g_dev_x, -g_dev_y)，
++        // 因为屏幕 y 轴向下、而设备 y 轴向上。
++        sx = -lpX * GAIN
++        sy = +lpY * GAIN
++
++        // 高通拿甩动
++        val hx = x - lpX
++        val hy = y - lpY
++        val hz = z - lpZ
++        val mag = hypot(hx.toDouble(), hy.toDouble(), hz.toDouble())
++        if (mag < SHAKE_THRESHOLD) return
++        val now = System.nanoTime() / 1_000_000
++        if (now - lastShakeMs < SHAKE_COOLDOWN_MS) return
++        lastShakeMs = now
++        val len = mag.coerceAtLeast(1e-6)
++        // 屏幕系方向：x 右为正（设备 x 与屏幕 x 同向，取 +），y 下为正（设备 y 向上，取 -）。
++        // 高通分量 ≈ 手机加速度，所以「甩向右 → 她飞向右」，符合直觉。
++        val dirX = hx / len
++        val dirY = -hy / len
++        val power = (mag / SHAKE_REF).coerceIn(0.0, 1.0)
++        // 方向太近水平线（纯前后甩）时横向分量≈0：保持原样，Service 侧会用 vy 兜底
++        onShake?.invoke(dirX, dirY, power)
++    }
++
++    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
++        // 精度变化不影响用法
++    }
++}
+--- a/app/src/main/java/com/dshpet/android/Weather.kt	1970-01-01 08:00:00.000000000 +0800
++++ b/app/src/main/java/com/dshpet/android/Weather.kt	1970-01-01 08:00:00.000000000 +0800
+@@ -0,0 +1,187 @@
++package com.dshpet.android
++
++import android.content.Context
++import android.os.Handler
++import android.os.Looper
++import android.os.SystemClock
++import org.json.JSONObject
++import java.io.File
++import java.net.HttpURLConnection
++import java.net.URL
++import java.net.URLEncoder
++import java.util.concurrent.Executors
++
++/**
++ * 天气（v1.9，opt-in 联网）：用 Open-Meteo（**免 API key**）取用户指定城市的当前天气。
++ *
++ * 设计原则：设置页关着（默认）就**完全不调用**本类，App 保持「默认零网络」的既有设计；
++ * 只有用户主动打开「天气」并填了城市名，才走这里的两段请求：
++ *   1) 地理编码：城市名 → 经纬度（geocoding-api.open-meteo.com）
++ *   2) 当前天气：经纬度 → 温度 + 天气码（api.open-meteo.com/v1/forecast?current=...）
++ *
++ * 结果写 `files/weather.json`（带时间戳）做 30 分钟缓存，重启 / 重新触发直接读缓存不联网。
++ * 任何一步失败都静默降级（Diag 记一笔，返回 null），绝不影响桌宠其它功能。
++ */
++object Weather {
++
++    data class Report(val temp: Int, val code: Int, val desc: String, val fromCache: Boolean)
++
++    private const val CACHE_MAX_AGE_MS = 30 * 60 * 1000L
++    private const val CONNECT_TIMEOUT_MS = 6000
++    private const val READ_TIMEOUT_MS = 10000
++
++    /** 单线程执行器：后台发请求，不占主线程 */
++    private val io = Executors.newSingleThreadExecutor()
++    private val main = Handler(Looper.getMainLooper())
++
++    /** 防止同一时刻重复请求（点得很快时） */
++    @Volatile
++    private var inFlight = false
++
++    private fun cacheFile(ctx: Context): File =
++        File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, "weather.json")
++
++    /**
++     * 取城市当前天气。`onResult` 一定在主线程回调：
++     *  - 成功 → [Report]（可能是缓存）
++     *  - 失败 / 没填城市 / 网络不可用 → null
++     */
++    fun fetch(ctx: Context, city: String, onResult: (Report?) -> Unit) {
++        val trimmed = city.trim()
++        if (trimmed.isEmpty()) {
++            onResult(null)
++            return
++        }
++        // 1) 同城市 + 30 分钟内 → 直接用缓存，不联网
++        try {
++            val f = cacheFile(ctx)
++            if (f.isFile) {
++                val obj = JSONObject(f.readText())
++                if (
++                    obj.optString("city") == trimmed &&
++                    SystemClock.elapsedRealtime() - obj.optLong("fetchedAtMs") < CACHE_MAX_AGE_MS
++                ) {
++                    onResult(reportOf(obj, fromCache = true))
++                    return
++                }
++            }
++        } catch (_: Throwable) {
++            // 缓存读不了就重取
++        }
++
++        if (inFlight) return  // 上一次还没回来，不叠加
++        if (!hasNetwork(ctx)) {
++            Diag.record(ctx, "天气：当前无网络，跳过")
++            onResult(null)
++            return
++        }
++        inFlight = true
++        io.execute {
++            var report: Report? = null
++            try {
++                report = doFetch(trimmed)
++                if (report != null) save(ctx, trimmed, report)
++            } catch (t: Throwable) {
++                Diag.record(ctx, "天气抓取失败（$trimmed）", t)
++            }
++            val result = report
++            inFlight = false
++            main.post { onResult(result) }
++        }
++    }
++
++    private fun doFetch(city: String): Report? {
++        // 1) 地理编码：城市名 → 经纬度（取第一个命中）
++        val geoUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" +
++            URLEncoder.encode(city, "UTF-8") + "&count=1&language=zh"
++        val geo = httpGet(geoUrl) ?: return null
++        val gobj = JSONObject(geo)
++        val results = gobj.optJSONArray("results") ?: return null
++        if (results.length() == 0) return null
++        val first = results.getJSONObject(0)
++        val lat = first.optDouble("latitude", Double.NaN)
++        val lon = first.optDouble("longitude", Double.NaN)
++        if (lat.isNaN() || lon.isNaN()) return null
++
++        // 2) 当前天气：温度 + 天气码
++        val fUrl = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
++            "&current=temperature_2m,weather_code&timezone=auto"
++        val fobj = JSONObject(httpGet(fUrl) ?: return null)
++        val cur = fobj.optJSONObject("current") ?: return null
++        val temp = cur.optInt("temperature_2m", Int.MIN_VALUE)
++        val code = cur.optInt("weather_code", -1)
++        if (temp == Int.MIN_VALUE && code < 0) return null
++        return Report(temp = if (temp == Int.MIN_VALUE) 0 else temp, code = if (code < 0) 3 else code,
++            desc = codeToDesc(code), fromCache = false)
++    }
++
++    private fun save(ctx: Context, city: String, r: Report) {
++        try {
++            val obj = JSONObject()
++            obj.put("city", city)
++            obj.put("fetchedAtMs", SystemClock.elapsedRealtime())
++            obj.put("temp", r.temp)
++            obj.put("code", r.code)
++            val f = cacheFile(ctx)
++            f.parentFile?.mkdirs()
++            f.writeText(obj.toString())
++        } catch (t: Throwable) {
++            Diag.record(ctx, "天气缓存写入失败", t)
++        }
++    }
++
++    private fun reportOf(obj: JSONObject, fromCache: Boolean): Report? {
++        val temp = obj.optInt("temp", Int.MIN_VALUE)
++        val code = obj.optInt("code", -1)
++        if (temp == Int.MIN_VALUE && code < 0) return null
++        return Report(
++            temp = if (temp == Int.MIN_VALUE) 0 else temp,
++            code = if (code < 0) 3 else code,
++            desc = codeToDesc(code),
++            fromCache = fromCache,
++        )
++    }
++
++    private fun hasNetwork(ctx: Context): Boolean = try {
++        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
++            ?: return@try false
++        @Suppress("DEPRECATION")
++        cm.activeNetworkInfo?.isConnected ?: false
++    } catch (_: Throwable) {
++        false
++    }
++
++    private fun httpGet(url: String): String? = try {
++        val conn = URL(url).openConnection() as HttpURLConnection
++        conn.connectTimeout = CONNECT_TIMEOUT_MS
++        conn.readTimeout = READ_TIMEOUT_MS
++        conn.requestMethod = "GET"
++        conn.requestProperties["User-Agent"] = "dsh-pet-android/1.9"
++        val code = conn.responseCode
++        if (code !in 200..299) {
++            conn.disconnect()
++            return null
++        }
++        val text = conn.inputStream.bufferedReader().use { it.readText() }
++        conn.disconnect()
++        text
++    } catch (_: Throwable) {
++        null
++    }
++
++    /** WMO weather_code → 一句人话（够冒泡用的精度即可） */
++    fun codeToDesc(code: Int): String = when (code) {
++        0 -> "晴朗"
++        1 -> "大致晴朗"
++        2 -> "多云"
++        3 -> "阴天"
++        45, 48 -> "有雾"
++        51, 53, 55, 56, 57 -> "毛毛雨"
++        61, 63, 65, 66, 67 -> "下雨"
++        71, 73, 75, 77 -> "下雪"
++        80, 81, 82 -> "有阵雨"
++        85, 86 -> "阵雪"
++        95, 96, 99 -> "有雷暴"
++        else -> "天不错"
++    }
++}
+--- a/app/src/main/res/layout/activity_main.xml	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/res/layout/activity_main.xml	2026-11-01 14:37:35.382493032 +0800
+@@ -439,10 +439,266 @@
+                 </LinearLayout>
+             </LinearLayout>
+ 
+-            <!-- 后台保活：清后台时不容易误杀 -->
++            <!-- 陀螺仪 / 振动（v1.9） -->
+             <LinearLayout
+                 android:layout_width="match_parent"
+                 android:layout_height="wrap_content"
++                android:layout_marginTop="14dp"
++                android:background="@drawable/bg_card"
++                android:orientation="vertical"
++                android:padding="18dp">
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:gravity="center_vertical"
++                    android:orientation="horizontal">
++
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_height="wrap_content"
++                        android:layout_weight="1"
++                        android:orientation="vertical">
++
++                        <TextView
++                            android:layout_width="wrap_content"
++                            android:layout_height="wrap_content"
++                            android:text="@string/tilt_title"
++                            android:textColor="@color/text"
++                            android:textSize="14sp" />
++
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:layout_marginTop="4dp"
++                            android:text="@string/tilt_hint"
++                            android:textColor="@color/text_dim"
++                            android:textSize="12sp" />
++                    </LinearLayout>
++
++                    <TextView
++                        android:id="@+id/btnTilt"
++                        android:layout_width="wrap_content"
++                        android:layout_height="44dp"
++                        android:layout_marginStart="8dp"
++                        android:background="@drawable/bg_chip_off"
++                        android:clickable="true"
++                        android:focusable="true"
++                        android:gravity="center"
++                        android:minWidth="56dp"
++                        android:paddingStart="14dp"
++                        android:paddingEnd="14dp"
++                        android:text="@string/sound_off"
++                        android:textColor="@color/chip_off_text"
++                        android:textSize="13sp" />
++                </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="12dp"
++                    android:gravity="center_vertical"
++                    android:orientation="horizontal">
++
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_height="wrap_content"
++                        android:layout_weight="1"
++                        android:orientation="vertical">
++
++                        <TextView
++                            android:layout_width="wrap_content"
++                            android:layout_height="wrap_content"
++                            android:text="@string/shake_title"
++                            android:textColor="@color/text"
++                            android:textSize="14sp" />
++
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:layout_marginTop="4dp"
++                            android:text="@string/shake_hint"
++                            android:textColor="@color/text_dim"
++                            android:textSize="12sp" />
++                    </LinearLayout>
++
++                    <TextView
++                        android:id="@+id/btnShake"
++                        android:layout_width="wrap_content"
++                        android:layout_height="44dp"
++                        android:layout_marginStart="8dp"
++                        android:background="@drawable/bg_chip_off"
++                        android:clickable="true"
++                        android:focusable="true"
++                        android:gravity="center"
++                        android:minWidth="56dp"
++                        android:paddingStart="14dp"
++                        android:paddingEnd="14dp"
++                        android:text="@string/sound_off"
++                        android:textColor="@color/chip_off_text"
++                        android:textSize="13sp" />
++                </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="12dp"
++                    android:gravity="center_vertical"
++                    android:orientation="horizontal">
++
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_height="wrap_content"
++                        android:layout_weight="1"
++                        android:orientation="vertical">
++
++                        <TextView
++                            android:layout_width="wrap_content"
++                            android:layout_height="wrap_content"
++                            android:text="@string/haptic_title"
++                            android:textColor="@color/text"
++                            android:textSize="14sp" />
++
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:layout_marginTop="4dp"
++                            android:text="@string/haptic_hint"
++                            android:textColor="@color/text_dim"
++                            android:textSize="12sp" />
++                    </LinearLayout>
++
++                    <TextView
++                        android:id="@+id/btnHaptic"
++                        android:layout_width="wrap_content"
++                        android:layout_height="44dp"
++                        android:layout_marginStart="8dp"
++                        android:background="@drawable/bg_chip_off"
++                        android:clickable="true"
++                        android:focusable="true"
++                        android:gravity="center"
++                        android:minWidth="56dp"
++                        android:paddingStart="14dp"
++                        android:paddingEnd="14dp"
++                        android:text="@string/sound_on"
++                        android:textColor="@color/chip_off_text"
++                        android:textSize="13sp" />
++                </LinearLayout>
++            </LinearLayout>
++
++            <!-- 天气 / 好感度（v1.9） -->
++            <LinearLayout
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginTop="14dp"
++                android:background="@drawable/bg_card"
++                android:orientation="vertical"
++                android:padding="18dp">
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:gravity="center_vertical"
++                    android:orientation="horizontal">
++
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_height="wrap_content"
++                        android:layout_weight="1"
++                        android:orientation="vertical">
++
++                        <TextView
++                            android:layout_width="wrap_content"
++                            android:layout_height="wrap_content"
++                            android:text="@string/weather_title"
++                            android:textColor="@color/text"
++                            android:textSize="14sp" />
++
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:layout_marginTop="4dp"
++                            android:text="@string/weather_hint"
++                            android:textColor="@color/text_dim"
++                            android:textSize="12sp" />
++                    </LinearLayout>
++
++                    <TextView
++                        android:id="@+id/btnWeather"
++                        android:layout_width="wrap_content"
++                        android:layout_height="44dp"
++                        android:layout_marginStart="8dp"
++                        android:background="@drawable/bg_chip_off"
++                        android:clickable="true"
++                        android:focusable="true"
++                        android:gravity="center"
++                        android:minWidth="56dp"
++                        android:paddingStart="14dp"
++                        android:paddingEnd="14dp"
++                        android:text="@string/sound_off"
++                        android:textColor="@color/chip_off_text"
++                        android:textSize="13sp" />
++                </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="10dp"
++                    android:gravity="center_vertical"
++                    android:orientation="horizontal">
++
++                    <EditText
++                        android:id="@+id/inputWeatherCity"
++                        android:layout_width="0dp"
++                        android:layout_height="44dp"
++                        android:layout_weight="1"
++                        android:background="@drawable/bg_card"
++                        android:hint="@string/weather_city_hint"
++                        android:imeOptions="actionDone"
++                        android:inputType="text"
++                        android:maxLines="1"
++                        android:paddingStart="12dp"
++                        android:paddingEnd="12dp"
++                        android:textColor="@color/text"
++                        android:textColorHint="@color/text_dim"
++                        android:textSize="13sp" />
++
++                    <TextView
++                        android:id="@+id/btnWeatherCitySave"
++                        android:layout_width="wrap_content"
++                        android:layout_height="44dp"
++                        android:layout_marginStart="8dp"
++                        android:background="@drawable/bg_btn_ghost"
++                        android:clickable="true"
++                        android:focusable="true"
++                        android:gravity="center"
++                        android:paddingStart="14dp"
++                        android:paddingEnd="14dp"
++                        android:text="@string/weather_city_save"
++                        android:textColor="@color/text_sub"
++                        android:textSize="13sp" />
++                </LinearLayout>
++
++                <TextView
++                    android:id="@+id/tvAffinity"
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="12dp"
++                    android:textColor="@color/text_sub"
++                    android:textSize="13sp" />
++
++                <TextView
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="4dp"
++                    android:text="@string/feed_hint"
++                    android:textColor="@color/text_dim"
++                    android:textSize="12sp" />
++            </LinearLayout>
++
++            <!-- 后台保活：清后台时不容易误杀 -->            <LinearLayout
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
+                 android:layout_marginTop="12dp"
+                 android:background="@drawable/bg_card"
+                 android:orientation="vertical"
+--- a/app/src/main/res/values/strings.xml	2026-10-22 18:57:56.000000000 +0800
++++ b/app/src/main/res/values/strings.xml	2026-11-01 14:38:17.162493016 +0800
+@@ -68,6 +68,24 @@
+     <string name="keepalive_title">后台保活</string>
+     <string name="keepalive_hint">开启后：从「最近任务」里隐藏（清后台时不容易被误删），被系统回收会自动回来，并申请「忽略电池优化」。部分机型还要在系统设置里允许自启动。</string>
+ 
++    <!-- v1.9 新增 -->
++    <string name="tilt_title">陀螺仪倾斜</string>
++    <string name="tilt_hint">转手腕压低一侧，她就往那侧慢慢滑开（「走开」）；甩抛时重力也随倾斜走。需要设备有加速度计。</string>
++    <string name="shake_title">摇一摇甩出</string>
++    <string name="shake_hint">猛甩一下手机，她会被甩出去——走完整抛体物理（撞边反弹、落地摩擦、振动反馈）。</string>
++    <string name="haptic_title">振动反馈</string>
++    <string name="haptic_hint">落地时重震一下、撞墙轻震一下（真马达，可关）。</string>
++
++    <string name="weather_title">天气（需联网）</string>
++    <string name="weather_hint">打开后才会用 Open-Meteo（免 API key）查你填的城市并冒泡说句天气，30 分钟一次；关着时本 App 依然零网络。</string>
++    <string name="weather_city_hint">城市名，如「北京」</string>
++    <string name="weather_city_save">记住城市</string>
++    <string name="weather_city_saved">已记住：%1$s（打开「天气」开关后 30 分钟查一次）</string>
++    <string name="weather_city_empty">先填个城市名再保存</string>
++
++    <string name="feed_value">当前好感：Lv.%1$d</string>
++    <string name="feed_hint">长按大肥鱼 →「🐟 投喂」：每 5 秒一次，+5 好感；每 100 升一级（Lv.0~9），升级会冒泡庆祝。台词里的 {food} / {lv} 会自动替换。</string>
++
+     <string name="menu_title">选择动作</string>
+ 
+     <string name="need_overlay">还没有悬浮窗权限，先点「授权悬浮窗」。</string>

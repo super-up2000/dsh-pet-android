@@ -1971,10 +1971,10 @@ index 829b902..e544884 100644
  }
 diff --git a/app/src/main/java/com/dshpet/android/Sensors.kt b/app/src/main/java/com/dshpet/android/Sensors.kt
 new file mode 100644
-index 0000000..129d61f
+index 0000000..51430fc
 --- /dev/null
 +++ b/app/src/main/java/com/dshpet/android/Sensors.kt
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,107 @@
 +package com.dshpet.android
 +
 +import android.content.Context
@@ -1982,20 +1982,13 @@ index 0000000..129d61f
 +import android.hardware.SensorEvent
 +import android.hardware.SensorEventListener
 +import android.hardware.SensorManager
-+import kotlin.math.abs
 +import kotlin.math.sqrt
 +
 +/**
 + * 传感器：把手机姿态变成桌宠的两种操控（对应上游 dsh-pet 的两个物理开关）：
-+ *
-+ *  - 倾斜控制（`physics.tiltGravity`）：把加速度计的「重力分量」换算成屏幕坐标系的重力向量。
-+ *    手机竖直拿着时 ≈ (0, 1400px/s²) 固定向下，和默认重力手感一致；
-+ *    转手腕把一侧压低 → 重力横向分量出现，宠物就会往那侧滑（「走开」）。
-+ *  - 摇一摇（`physics.shakeThrow`）：检测猛甩（高通分量 > 阈值）→ 回调甩动方向与力度，
-+ *    由 Service 把初速打给宠物，走现成的抛体物理（撞边反弹 / 落地摩擦全套都在）。
-+ *
-+ * 传感器事件默认落在主线程，和帧循环同线程，读写字段无需额外同步（@Volatile 兜底）。
-+ * 取不到加速度计的机型（个别模拟器 / 平板）自动降级：available=false，功能静默失效。
++ *  - 倾斜控制（physics.tiltGravity）：加速度计重力分量 → 屏幕系重力向量。
++ *  - 摇一摇（physics.shakeThrow）：高通分量 > 阈值 → 甩动方向/力度回调，Service 打初速走抛体物理。
++ * 传感器事件落主线程，和帧循环同线程，@Volatile 兜底。无加速度计机型自动降级（available=false）。
 + */
 +class Sensors(private val ctx: Context) : SensorEventListener {
 +
@@ -2017,7 +2010,7 @@ index 0000000..129d61f
 +    @Volatile var sy = 0.0
 +    @Volatile var available = false
 +
-+    /** 摇一摇回调：方向（已归一化，屏幕系：右/下为正）+ 力度 0..1 */
++    /** 摇一摇回调：方向（归一化，屏幕系右/下为正）+ 力度 0..1 */
 +    var onShake: ((dirX: Double, dirY: Double, power: Double) -> Unit)? = null
 +
 +    private val sm: SensorManager? =
@@ -2029,7 +2022,7 @@ index 0000000..129d61f
 +    private var lpZ = 0f
 +    private var lastShakeMs = 0L
 +
-+    /** 注册监听；没有加速度计返回 false（调用方静默降级即可） */
++    /** 注册监听；没有加速度计返回 false */
 +    fun start(): Boolean {
 +        val s = sensor
 +        if (sm == null || s == null) {
@@ -2039,6 +2032,7 @@ index 0000000..129d61f
 +        return try {
 +            sm.registerListener(this, s, SensorManager.SENSOR_DELAY_GAME)
 +            available = true
++            true
 +        } catch (t: Throwable) {
 +            Diag.record(ctx, "注册加速度计失败", t)
 +            available = false
@@ -2063,28 +2057,24 @@ index 0000000..129d61f
 +        lpX = LPF * lpX + (1 - LPF) * x
 +        lpY = LPF * lpY + (1 - LPF) * y
 +        lpZ = LPF * lpZ + (1 - LPF) * z
-+        // 屏幕系重力：手机竖直 → (0, +9.81*GAIN) 向下；右侧压低 → sx 增大（往右滑）。
-+        // 推导：静止时加速度计读 f=-g，即 g_device = -f；屏幕系 = (g_dev_x, -g_dev_y)，
-+        // 因为屏幕 y 轴向下、而设备 y 轴向上。
++        // 屏幕系重力：手机竖直 → sy ≈ +9.81*GAIN 向下；右侧压低 → sx 增大（往右滑）
 +        sx = -lpX * GAIN
 +        sy = +lpY * GAIN
 +
-+        // 高通拿甩动
-+        val hx = x - lpX
-+        val hy = y - lpY
-+        val hz = z - lpZ
-+        val mag = sqrt(hx*hx + hy*hy + hz*hz)
++        // 高通拿甩动（全量 Double）
++        val hx = (x - lpX).toDouble()
++        val hy = (y - lpY).toDouble()
++        val hz = (z - lpZ).toDouble()
++        val mag = sqrt(hx * hx + hy * hy + hz * hz)
 +        if (mag < SHAKE_THRESHOLD) return
-+        val now = System.nanoTime() / 1_000_000
++        val now = System.nanoTime() / 1_000_000L
 +        if (now - lastShakeMs < SHAKE_COOLDOWN_MS) return
 +        lastShakeMs = now
 +        val len = mag.coerceAtLeast(1e-6)
-+        // 屏幕系方向：x 右为正（设备 x 与屏幕 x 同向，取 +），y 下为正（设备 y 向上，取 -）。
-+        // 高通分量 ≈ 手机加速度，所以「甩向右 → 她飞向右」，符合直觉。
++        // 屏幕系方向：x 右为正（取 +），y 下为正（设备 y 向上，取 -）
 +        val dirX = hx / len
 +        val dirY = -hy / len
 +        val power = (mag / SHAKE_REF).coerceIn(0.0, 1.0)
-+        // 方向太近水平线（纯前后甩）时横向分量≈0：保持原样，Service 侧会用 vy 兜底
 +        onShake?.invoke(dirX, dirY, power)
 +    }
 +
@@ -2150,7 +2140,7 @@ index aa2ab63..b0fda23 100644
  
 diff --git a/app/src/main/java/com/dshpet/android/Weather.kt b/app/src/main/java/com/dshpet/android/Weather.kt
 new file mode 100644
-index 0000000..553d3e5
+index 0000000..0324970
 --- /dev/null
 +++ b/app/src/main/java/com/dshpet/android/Weather.kt
 @@ -0,0 +1,190 @@
@@ -2311,7 +2301,7 @@ index 0000000..553d3e5
 +            conn.connectTimeout = CONNECT_TIMEOUT_MS
 +            conn.readTimeout = READ_TIMEOUT_MS
 +            conn.requestMethod = "GET"
-+            conn.requestProperties["User-Agent"] = "dsh-pet-android/1.9"
++            conn.setRequestProperty("User-Agent", "dsh-pet-android/1.9")
 +            val code = conn.responseCode
 +            if (code !in 200..299) {
 +                conn.disconnect()
